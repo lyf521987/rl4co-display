@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>算法性能对比 - RL4CO 平台 | 山西大学</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .university-badge {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #667eea;
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: #333;
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: #667eea;
+        }
+
+        .main-container {
+            max-width: 1600px;
+            margin: 100px auto 50px;
+            padding: 0 2rem;
+        }
+
+        .hero-section {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .hero-section h1 {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-section .subtitle {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .reference-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 50px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        .control-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .control-panel h3 {
+            color: #667eea;
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-item label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .control-item select {
+            padding: 0.8rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            background: white;
+        }
+
+        .control-item select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .chart-title {
+            color: #667eea;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .chart {
+            width: 100%;
+            height: 600px;
+        }
+
+        .info-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.12);
+        }
+
+        .info-card h4 {
+            color: #667eea;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-card .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .info-card .metric:last-child {
+            border-bottom: none;
+        }
+
+        .info-card .metric-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .info-card .metric-value {
+            color: #333;
+            font-weight: bold;
+        }
+
+        .legend-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .legend-box h5 {
+            color: #333;
+            font-size: 0.95rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        footer {
+            background: white;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 15px;
+            margin-top: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        footer p {
+            color: #666;
+            margin: 0.3rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav">
+            <div class="logo-section">
+                <div class="university-badge">山西大学</div>
+            </div>
+            <div class="nav-links">
+                <a href="/home">首页</a>
+                <a href="/benchmark" class="active">算法对比</a>
+                <a href="#about">关于</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="main-container">
+        <section class="hero-section">
+            <h1>📊 路由问题算法性能对比</h1>
+            <p class="subtitle">基于KDD '25论文的Benchmark结果</p>
+            <p class="subtitle">对比多种深度强化学习算法在不同路由问题上的表现</p>
+            <div class="reference-badge">数据来源: KDD 2025 Conference</div>
+        </section>
+
+        <div class="control-panel">
+            <h3>🎛️ 数据筛选</h3>
+            <div class="control-grid">
+                <div class="control-item">
+                    <label for="node-select">节点规模</label>
+                    <select id="node-select" onchange="updateCharts()">
+                        <option value="50">50 节点</option>
+                        <option value="20">20 节点</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="problem-select">问题类型</label>
+                    <select id="problem-select" onchange="updateCharts()">
+                        <option value="TSP">TSP (旅行商问题)</option>
+                        <option value="CVRP">CVRP (带容量车辆路径)</option>
+                        <option value="OP">OP (定向问题)</option>
+                        <option value="PCTSP">PCTSP (奖励收集TSP)</option>
+                        <option value="PDP">PDP (取送货问题)</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="metric-select">评估指标</label>
+                    <select id="metric-select" onchange="updateCharts()">
+                        <option value="Gap">Gap (质量差距 %)</option>
+                        <option value="Cost">Cost (总成本)</option>
+                        <option value="Time">Time (计算时间)</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="category-select">算法类别</label>
+                    <select id="category-select" onchange="updateCharts()">
+                        <option value="all">全部算法</option>
+                        <option value="greedy">Greedy One Shot</option>
+                        <option value="sampling">Sampling (M=1280)</option>
+                        <option value="multistart">Greedy Multistart</option>
+                        <option value="augmentation">With Augmentation</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-cards">
+            <div class="info-card">
+                <h4>📈 当前最佳算法</h4>
+                <div class="metric">
+                    <span class="metric-label">算法名称:</span>
+                    <span class="metric-value" id="best-method">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Gap值:</span>
+                    <span class="metric-value" id="best-gap">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">计算时间:</span>
+                    <span class="metric-value" id="best-time">-</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h4>📊 数据统计</h4>
+                <div class="metric">
+                    <span class="metric-label">平均Gap:</span>
+                    <span class="metric-value" id="avg-gap">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">最大Gap:</span>
+                    <span class="metric-value" id="max-gap">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">最小Gap:</span>
+                    <span class="metric-value" id="min-gap">-</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h4>🎯 算法数量</h4>
+                <div class="metric">
+                    <span class="metric-label">当前显示:</span>
+                    <span class="metric-value" id="shown-count">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">总算法数:</span>
+                    <span class="metric-value" id="total-count">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">经典求解器:</span>
+                    <span class="metric-value">6</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title" id="chart-title">算法性能对比</div>
+            <div id="mainChart" class="chart"></div>
+            
+            <div class="legend-box">
+                <h5>📌 说明</h5>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #5470c6;"></div>
+                        <span>深度学习方法</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #91cc75;"></div>
+                        <span>经典求解器</span>
+                    </div>
+                    <div class="legend-item">
+                        <span>• Gap越小越好 (接近最优解)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span>• Time越短越好 (计算效率高)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p><strong>山西大学 计算机科学与技术学院</strong></p>
+            <p>RL4CO - Reinforcement Learning for Combinatorial Optimization Platform</p>
+            <p style="margin-top: 1rem; color: #999;">数据来源: KDD 2025 Conference Benchmark Results</p>
+            <p style="color: #999;">© 2025 Shanxi University. All Rights Reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        // KDD '25 Benchmark数据
+        const benchmarkData = {
+            "50": {
+                "TSP": {
+                    "Classical": [
+                        {method: "Gurobi", gap: 0.00, cost: 5.70, time: "2m"},
+                        {method: "Concorde", gap: 0.00, cost: 5.70, time: "2m"},
+                        {method: "LKH3", gap: 0.00, cost: 5.70, time: "5m"},
+                        {method: "OR Tools", gap: 1.83, cost: 5.80, time: "5m"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 2.22, cost: 5.83, time: "<1s"},
+                        {method: "AM", gap: 1.41, cost: 5.78, time: "<1s"},
+                        {method: "POMO", gap: 0.89, cost: 5.75, time: "<1s"},
+                        {method: "Sym-NCO", gap: 0.47, cost: 5.72, time: "<1s"},
+                        {method: "AM-XL", gap: 0.54, cost: 5.73, time: "<1s"},
+                        {method: "AM-PPO", gap: 0.92, cost: 5.76, time: "2s"},
+                        {method: "PolyNet", gap: 0.68, cost: 5.72, time: "2s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 0.72, cost: 5.74, time: "40s"},
+                        {method: "AM", gap: 0.40, cost: 5.72, time: "40s"},
+                        {method: "POMO", gap: 0.18, cost: 5.71, time: "1m"},
+                        {method: "Sym-NCO", gap: 0.14, cost: 5.70, time: "1m"},
+                        {method: "AM-XL", gap: 0.17, cost: 5.71, time: "1m"},
+                        {method: "AM-PPO", gap: 0.15, cost: 5.70, time: "40s"},
+                        {method: "PolyNet", gap: 0.15, cost: 5.70, time: "1m20s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 1.81, cost: 5.80, time: "2s"},
+                        {method: "AM", gap: 1.21, cost: 5.77, time: "2s"},
+                        {method: "POMO", gap: 0.29, cost: 5.71, time: "3s"},
+                        {method: "Sym-NCO", gap: 0.36, cost: 5.72, time: "3s"},
+                        {method: "AM-XL", gap: 0.42, cost: 5.72, time: "3s"},
+                        {method: "AM-PPO", gap: 0.61, cost: 5.74, time: "2s"},
+                        {method: "PolyNet", gap: 0.25, cost: 5.70, time: "3s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 0.18, cost: 5.71, time: "40s"},
+                        {method: "AM", gap: 0.07, cost: 5.70, time: "40s"},
+                        {method: "POMO", gap: 0.06, cost: 5.70, time: "1m"},
+                        {method: "Sym-NCO", gap: 0.01, cost: 5.70, time: "1m"},
+                        {method: "AM-XL", gap: 0.01, cost: 5.70, time: "1m"},
+                        {method: "AM-PPO", gap: 0.15, cost: 5.70, time: "40s"},
+                        {method: "PolyNet", gap: 0.17, cost: 5.70, time: "1m30s"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 0.41, cost: 5.72, time: "32s"},
+                        {method: "AM", gap: 0.21, cost: 5.71, time: "32s"},
+                        {method: "POMO", gap: 0.05, cost: 5.70, time: "48s"},
+                        {method: "Sym-NCO", gap: 0.03, cost: 5.70, time: "48s"},
+                        {method: "AM-XL", gap: 0.04, cost: 5.70, time: "48s"},
+                        {method: "AM-PPO", gap: 0.03, cost: 5.70, time: "32s"},
+                        {method: "PolyNet", gap: 0.15, cost: 5.70, time: "1m"}
+                    ]
+                },
+                "CVRP": {
+                    "Classical": [
+                        {method: "HGS", gap: 0.00, cost: 10.37, time: "10h"},
+                        {method: "LKH3", gap: 0.10, cost: 10.38, time: "12h"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 7.09, cost: 11.16, time: "<1s"},
+                        {method: "AM", gap: 5.30, cost: 10.95, time: "<1s"},
+                        {method: "POMO", gap: 3.99, cost: 10.80, time: "<1s"},
+                        {method: "Sym-NCO", gap: 4.61, cost: 10.87, time: "<1s"},
+                        {method: "AM-XL", gap: 4.31, cost: 10.84, time: "<1s"},
+                        {method: "AM-PPO", gap: 4.60, cost: 10.87, time: "<1s"},
+                        {method: "PolyNet", gap: 4.24, cost: 10.81, time: "2s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 3.07, cost: 10.70, time: "1m24s"},
+                        {method: "AM", gap: 2.22, cost: 10.60, time: "1m24s"},
+                        {method: "POMO", gap: 1.64, cost: 10.54, time: "2m30s"},
+                        {method: "Sym-NCO", gap: 2.03, cost: 10.58, time: "2m30s"},
+                        {method: "AM-XL", gap: 1.91, cost: 10.57, time: "2m30s"},
+                        {method: "AM-PPO", gap: 1.52, cost: 10.52, time: "1m24s"},
+                        {method: "PolyNet", gap: 0.53, cost: 10.42, time: "2m40s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 4.86, cost: 10.90, time: "6s"},
+                        {method: "AM", gap: 3.39, cost: 10.73, time: "6s"},
+                        {method: "POMO", gap: 2.04, cost: 10.58, time: "8s"},
+                        {method: "Sym-NCO", gap: 3.17, cost: 10.71, time: "8s"},
+                        {method: "AM-XL", gap: 2.88, cost: 10.68, time: "8s"},
+                        {method: "AM-PPO", gap: 2.72, cost: 10.67, time: "6s"},
+                        {method: "PolyNet", gap: 1.42, cost: 10.52, time: "18s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 2.49, cost: 10.63, time: "1m24s"},
+                        {method: "AM", gap: 1.56, cost: 10.53, time: "1m24s"},
+                        {method: "POMO", gap: 1.72, cost: 10.55, time: "2m30s"},
+                        {method: "Sym-NCO", gap: 1.54, cost: 10.53, time: "2m30s"},
+                        {method: "AM-XL", gap: 1.47, cost: 10.52, time: "2m30s"},
+                        {method: "AM-PPO", gap: 1.52, cost: 10.52, time: "1m24s"},
+                        {method: "PolyNet", gap: 0.92, cost: 10.47, time: "3m"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 2.81, cost: 10.67, time: "1m"},
+                        {method: "AM", gap: 1.73, cost: 10.55, time: "1m"},
+                        {method: "POMO", gap: 1.11, cost: 10.48, time: "2m"},
+                        {method: "Sym-NCO", gap: 1.63, cost: 10.54, time: "2m"},
+                        {method: "AM-XL", gap: 1.50, cost: 10.53, time: "2m"},
+                        {method: "AM-PPO", gap: 1.45, cost: 10.51, time: "1m"},
+                        {method: "PolyNet", gap: 0.36, cost: 10.41, time: "2m16s"}
+                    ]
+                },
+                "OP": {
+                    "Classical": [
+                        {method: "Compass", gap: 0.00, cost: 16.17, time: "5m"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 8.64, cost: 14.77, time: "<1s"},
+                        {method: "AM", gap: 4.40, cost: 15.46, time: "<1s"},
+                        {method: "POMO", gap: 14.26, cost: 13.86, time: "<1s"},
+                        {method: "Sym-NCO", gap: 3.09, cost: 15.67, time: "<1s"},
+                        {method: "AM-XL", gap: 2.98, cost: 15.69, time: "<1s"},
+                        {method: "AM-PPO", gap: 3.05, cost: 15.67, time: "<1s"},
+                        {method: "PolyNet", gap: 2.93, cost: 15.70, time: "2s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 6.37, cost: 15.14, time: "48s"},
+                        {method: "AM", gap: 1.68, cost: 15.90, time: "48s"},
+                        {method: "POMO", gap: 9.56, cost: 14.62, time: "1m10s"},
+                        {method: "Sym-NCO", gap: 0.93, cost: 16.02, time: "1m10s"},
+                        {method: "AM-XL", gap: 1.25, cost: 15.97, time: "1m10s"},
+                        {method: "AM-PPO", gap: 0.78, cost: 16.04, time: "48s"},
+                        {method: "PolyNet", gap: 0.52, cost: 16.08, time: "1m55s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 9.65, cost: 14.61, time: "4s"},
+                        {method: "AM", gap: 2.84, cost: 15.71, time: "4s"},
+                        {method: "POMO", gap: 13.71, cost: 13.95, time: "7s"},
+                        {method: "Sym-NCO", gap: 1.79, cost: 15.88, time: "7s"},
+                        {method: "AM-XL", gap: 1.95, cost: 15.85, time: "7s"},
+                        {method: "AM-PPO", gap: 1.21, cost: 15.98, time: "4s"},
+                        {method: "PolyNet", gap: 0.71, cost: 16.05, time: "3s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 7.91, cost: 14.89, time: "48s"},
+                        {method: "AM", gap: 1.79, cost: 15.88, time: "48s"},
+                        {method: "POMO", gap: 11.97, cost: 14.23, time: "1m15m"},
+                        {method: "Sym-NCO", gap: 1.41, cost: 15.94, time: "1m15m"},
+                        {method: "AM-XL", gap: 1.66, cost: 15.90, time: "1m15m"},
+                        {method: "AM-PPO", gap: 0.84, cost: 16.01, time: "48s"},
+                        {method: "PolyNet", gap: 0.72, cost: 16.05, time: "2m"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 5.88, cost: 15.22, time: "30s"},
+                        {method: "AM", gap: 0.76, cost: 16.05, time: "30s"},
+                        {method: "POMO", gap: 6.94, cost: 15.05, time: "1m"},
+                        {method: "Sym-NCO", gap: 0.51, cost: 16.09, time: "1m"},
+                        {method: "AM-XL", gap: 0.57, cost: 16.08, time: "1m"},
+                        {method: "AM-PPO", gap: 0.49, cost: 16.09, time: "30s"},
+                        {method: "PolyNet", gap: 0.37, cost: 16.11, time: "1m24s"}
+                    ]
+                },
+                "PCTSP": {
+                    "Classical": [
+                        {method: "OR Tools", gap: 0.00, cost: 4.48, time: "5h"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 14.96, cost: 5.15, time: "<1s"},
+                        {method: "AM", gap: 2.46, cost: 4.59, time: "<1s"},
+                        {method: "POMO", gap: 11.61, cost: 5.00, time: "<1s"},
+                        {method: "Sym-NCO", gap: 2.12, cost: 4.52, time: "<1s"},
+                        {method: "AM-XL", gap: 2.44, cost: 4.53, time: "<1s"},
+                        {method: "AM-PPO", gap: 1.18, cost: 4.53, time: "<1s"},
+                        {method: "PolyNet", gap: 2.45, cost: 4.54, time: "2s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 10.71, cost: 4.96, time: "57s"},
+                        {method: "AM", gap: 0.99, cost: 4.52, time: "57s"},
+                        {method: "POMO", gap: 7.59, cost: 4.82, time: "1m23s"},
+                        {method: "Sym-NCO", gap: 0.82, cost: 4.52, time: "1m23s"},
+                        {method: "AM-XL", gap: 0.88, cost: 4.52, time: "1m23s"},
+                        {method: "AM-PPO", gap: 0.18, cost: 4.48, time: "57s"},
+                        {method: "PolyNet", gap: 0.13, cost: 4.47, time: "2m15s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 14.29, cost: 5.12, time: "5s"},
+                        {method: "AM", gap: 1.89, cost: 4.56, time: "5s"},
+                        {method: "POMO", gap: 11.16, cost: 4.98, time: "7s"},
+                        {method: "Sym-NCO", gap: 1.59, cost: 4.55, time: "7s"},
+                        {method: "AM-XL", gap: 1.79, cost: 4.56, time: "7s"},
+                        {method: "AM-PPO", gap: 1.18, cost: 4.53, time: "5s"},
+                        {method: "PolyNet", gap: 1.31, cost: 4.54, time: "10s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 14.96, cost: 5.15, time: "1m"},
+                        {method: "AM", gap: 2.46, cost: 4.59, time: "1m"},
+                        {method: "POMO", gap: 13.61, cost: 5.09, time: "1m42s"},
+                        {method: "Sym-NCO", gap: 2.17, cost: 4.58, time: "1m42s"},
+                        {method: "AM-XL", gap: 2.54, cost: 4.59, time: "1m42s"},
+                        {method: "AM-PPO", gap: 0.18, cost: 4.48, time: "1m"},
+                        {method: "PolyNet", gap: 0.10, cost: 4.47, time: "2m10s"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 12.94, cost: 5.06, time: "35s"},
+                        {method: "AM", gap: 1.28, cost: 4.54, time: "35s"},
+                        {method: "POMO", gap: 9.81, cost: 4.92, time: "1m10s"},
+                        {method: "Sym-NCO", gap: 0.24, cost: 4.54, time: "1m10s"},
+                        {method: "AM-XL", gap: 1.25, cost: 4.54, time: "1m10s"},
+                        {method: "AM-PPO", gap: 0.89, cost: 4.49, time: "35s"},
+                        {method: "PolyNet", gap: 0.24, cost: 4.49, time: "1m35s"}
+                    ]
+                },
+                "PDP": {
+                    "Classical": [
+                        {method: "LKH3", gap: 0.00, cost: 6.86, time: "1h30m"},
+                        {method: "OR Tools", gap: 7.29, cost: 7.36, time: "2h"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 9.90, cost: 7.52, time: "<1s"},
+                        {method: "AM", gap: 9.88, cost: 7.51, time: "<1s"},
+                        {method: "POMO", gap: 10.64, cost: 7.59, time: "<1s"},
+                        {method: "Sym-NCO", gap: 7.73, cost: 7.39, time: "<1s"},
+                        {method: "AM-XL", gap: 6.56, cost: 7.31, time: "<1s"},
+                        {method: "AM-PPO", gap: 8.31, cost: 7.43, time: "<1s"},
+                        {method: "PolyNet", gap: 3.46, cost: 8.26, time: "2s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 6.70, cost: 7.32, time: "1m15s"},
+                        {method: "AM", gap: 5.69, cost: 7.25, time: "1m15s"},
+                        {method: "POMO", gap: 6.56, cost: 7.31, time: "1m50s"},
+                        {method: "Sym-NCO", gap: 4.52, cost: 7.17, time: "1m50s"},
+                        {method: "AM-XL", gap: 4.23, cost: 7.15, time: "1m50s"},
+                        {method: "AM-PPO", gap: 4.52, cost: 7.17, time: "1m15s"},
+                        {method: "PolyNet", gap: 0.81, cost: 6.93, time: "2m10s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 9.85, cost: 7.54, time: "4s"},
+                        {method: "AM", gap: 8.75, cost: 7.46, time: "4s"},
+                        {method: "POMO", gap: 8.75, cost: 7.46, time: "6s"},
+                        {method: "Sym-NCO", gap: 7.58, cost: 7.38, time: "6s"},
+                        {method: "AM-XL", gap: 5.69, cost: 7.25, time: "6s"},
+                        {method: "AM-PPO", gap: 5.39, cost: 7.23, time: "4s"},
+                        {method: "PolyNet", gap: 4.65, cost: 7.18, time: "5s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 2.46, cost: 7.03, time: "1m15s"},
+                        {method: "AM", gap: 4.08, cost: 7.14, time: "1m15s"},
+                        {method: "POMO", gap: 4.23, cost: 7.15, time: "1m42s"},
+                        {method: "Sym-NCO", gap: 2.48, cost: 7.03, time: "1m45s"},
+                        {method: "AM-XL", gap: 1.75, cost: 6.98, time: "1m45s"},
+                        {method: "AM-PPO", gap: 2.04, cost: 7.00, time: "1m15s"},
+                        {method: "PolyNet", gap: 1.20, cost: 6.94, time: "2m15s"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 3.51, cost: 7.10, time: "50s"},
+                        {method: "AM", gap: 3.50, cost: 7.10, time: "50s"},
+                        {method: "POMO", gap: 3.79, cost: 7.12, time: "1m25s"},
+                        {method: "Sym-NCO", gap: 2.19, cost: 7.01, time: "1m25s"},
+                        {method: "AM-XL", gap: 2.04, cost: 7.00, time: "1m25s"},
+                        {method: "AM-PPO", gap: 1.75, cost: 6.98, time: "50s"},
+                        {method: "PolyNet", gap: 2.33, cost: 7.02, time: "1m50s"}
+                    ]
+                }
+            },
+            "20": {
+                "TSP": {
+                    "Classical": [
+                        {method: "Gurobi", gap: 0.00, cost: 3.84, time: "7s"},
+                        {method: "Concorde", gap: 0.00, cost: 3.84, time: "1m"},
+                        {method: "LKH3", gap: 0.00, cost: 3.84, time: "15s"},
+                        {method: "OR Tools", gap: 0.37, cost: 3.85, time: "1m"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 0.64, cost: 3.86, time: "<1s"},
+                        {method: "AM", gap: 0.19, cost: 3.84, time: "<1s"},
+                        {method: "POMO", gap: 0.18, cost: 3.84, time: "<1s"},
+                        {method: "Sym-NCO", gap: 0.05, cost: 3.84, time: "<1s"},
+                        {method: "AM-XL", gap: 0.07, cost: 3.84, time: "<1s"},
+                        {method: "PolyNet", gap: 0.10, cost: 3.84, time: "<1s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 0.15, cost: 3.84, time: "20s"},
+                        {method: "AM", gap: 0.04, cost: 3.84, time: "20s"},
+                        {method: "POMO", gap: 0.02, cost: 3.84, time: "36s"},
+                        {method: "Sym-NCO", gap: 0.01, cost: 3.84, time: "36s"},
+                        {method: "AM-XL", gap: 0.02, cost: 3.84, time: "36s"},
+                        {method: "PolyNet", gap: 0.00, cost: 3.84, time: "47s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 0.36, cost: 3.85, time: "<1s"},
+                        {method: "AM", gap: 0.12, cost: 3.84, time: "<1s"},
+                        {method: "POMO", gap: 0.05, cost: 3.84, time: "<1s"},
+                        {method: "Sym-NCO", gap: 0.03, cost: 3.84, time: "<1s"},
+                        {method: "AM-XL", gap: 0.05, cost: 3.84, time: "<1s"},
+                        {method: "PolyNet", gap: 0.01, cost: 3.84, time: "1s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 0.01, cost: 3.84, time: "20s"},
+                        {method: "AM", gap: 0.00, cost: 3.84, time: "20s"},
+                        {method: "POMO", gap: 0.00, cost: 3.84, time: "36s"},
+                        {method: "Sym-NCO", gap: 0.00, cost: 3.84, time: "36s"},
+                        {method: "AM-XL", gap: 0.00, cost: 3.84, time: "36s"},
+                        {method: "PolyNet", gap: 0.00, cost: 3.84, time: "55s"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 0.01, cost: 3.84, time: "9s"},
+                        {method: "AM", gap: 0.00, cost: 3.84, time: "9s"},
+                        {method: "POMO", gap: 0.00, cost: 3.84, time: "13s"},
+                        {method: "Sym-NCO", gap: 0.00, cost: 3.84, time: "13s"},
+                        {method: "AM-XL", gap: 0.00, cost: 3.84, time: "13s"},
+                        {method: "PolyNet", gap: 0.00, cost: 3.84, time: "18s"}
+                    ]
+                },
+                "CVRP": {
+                    "Classical": [
+                        {method: "HGS", gap: 0.00, cost: 6.13, time: "4h"},
+                        {method: "LKH3", gap: 0.16, cost: 6.14, time: "5h"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 5.00, cost: 6.46, time: "<1s"},
+                        {method: "AM", gap: 3.92, cost: 6.39, time: "<1s"},
+                        {method: "POMO", gap: 3.00, cost: 6.33, time: "<1s"},
+                        {method: "Sym-NCO", gap: 2.58, cost: 6.30, time: "<1s"},
+                        {method: "AM-XL", gap: 2.81, cost: 6.31, time: "<1s"},
+                        {method: "PolyNet", gap: 4.44, cost: 6.40, time: "<1s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 2.08, cost: 6.26, time: "24s"},
+                        {method: "AM", gap: 1.78, cost: 6.24, time: "24s"},
+                        {method: "POMO", gap: 1.06, cost: 6.20, time: "40s"},
+                        {method: "Sym-NCO", gap: 1.44, cost: 6.22, time: "40s"},
+                        {method: "AM-XL", gap: 1.46, cost: 6.22, time: "40s"},
+                        {method: "PolyNet", gap: 0.23, cost: 6.14, time: "1m15s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 3.04, cost: 6.33, time: "3s"},
+                        {method: "AM", gap: 2.27, cost: 6.28, time: "3s"},
+                        {method: "POMO", gap: 1.27, cost: 6.21, time: "4s"},
+                        {method: "Sym-NCO", gap: 1.48, cost: 6.22, time: "4s"},
+                        {method: "AM-XL", gap: 1.38, cost: 6.22, time: "4s"},
+                        {method: "PolyNet", gap: 0.71, cost: 6.17, time: "5s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 1.35, cost: 6.22, time: "24s"},
+                        {method: "AM", gap: 1.07, cost: 6.20, time: "24s"},
+                        {method: "POMO", gap: 0.84, cost: 6.18, time: "45s"},
+                        {method: "Sym-NCO", gap: 0.71, cost: 6.17, time: "45s"},
+                        {method: "AM-XL", gap: 0.68, cost: 6.17, time: "45s"},
+                        {method: "PolyNet", gap: 0.48, cost: 6.16, time: "1m10s"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 1.12, cost: 6.20, time: "48s"},
+                        {method: "AM", gap: 0.78, cost: 6.18, time: "48s"},
+                        {method: "POMO", gap: 0.50, cost: 6.16, time: "1m"},
+                        {method: "Sym-NCO", gap: 0.61, cost: 6.17, time: "1m"},
+                        {method: "AM-XL", gap: 0.44, cost: 6.16, time: "1m"},
+                        {method: "PolyNet", gap: 0.16, cost: 6.14, time: "1m20s"}
+                    ]
+                },
+                "OP": {
+                    "Classical": [
+                        {method: "HGS", gap: 0.00, cost: 5.39, time: "16m"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 6.70, cost: 5.01, time: "<1s"},
+                        {method: "AM", gap: 3.17, cost: 5.20, time: "<1s"},
+                        {method: "POMO", gap: 12.69, cost: 4.69, time: "<1s"},
+                        {method: "Sym-NCO", gap: 1.37, cost: 5.30, time: "<1s"},
+                        {method: "AM-XL", gap: 2.23, cost: 5.25, time: "<1s"},
+                        {method: "PolyNet", gap: 2.28, cost: 5.26, time: "<1s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 1.12, cost: 5.32, time: "22s"},
+                        {method: "AM", gap: 1.30, cost: 5.30, time: "22s"},
+                        {method: "POMO", gap: 8.83, cost: 4.90, time: "37s"},
+                        {method: "Sym-NCO", gap: 0.59, cost: 5.34, time: "37s"},
+                        {method: "AM-XL", gap: 0.93, cost: 5.32, time: "37s"},
+                        {method: "PolyNet", gap: 0.52, cost: 5.35, time: "37s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 5.77, cost: 5.06, time: "2s"},
+                        {method: "AM", gap: 2.42, cost: 5.24, time: "2s"},
+                        {method: "POMO", gap: 11.32, cost: 4.76, time: "3s"},
+                        {method: "Sym-NCO", gap: 0.87, cost: 5.32, time: "3s"},
+                        {method: "AM-XL", gap: 1.49, cost: 5.29, time: "3s"},
+                        {method: "PolyNet", gap: 0.58, cost: 5.34, time: "1s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 6.10, cost: 5.04, time: "22s"},
+                        {method: "AM", gap: 2.92, cost: 5.25, time: "22s"},
+                        {method: "POMO", gap: 9.76, cost: 4.85, time: "38s"},
+                        {method: "Sym-NCO", gap: 0.77, cost: 5.33, time: "38s"},
+                        {method: "AM-XL", gap: 1.30, cost: 5.30, time: "38s"},
+                        {method: "PolyNet", gap: 0.50, cost: 5.35, time: "57s"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 3.17, cost: 5.20, time: "32s"},
+                        {method: "AM", gap: 0.56, cost: 5.34, time: "32s"},
+                        {method: "POMO", gap: 5.29, cost: 5.09, time: "45s"},
+                        {method: "Sym-NCO", gap: 0.39, cost: 5.35, time: "45s"},
+                        {method: "AM-XL", gap: 0.46, cost: 5.35, time: "45s"},
+                        {method: "PolyNet", gap: 0.31, cost: 5.37, time: "1m"}
+                    ]
+                },
+                "PCTSP": {
+                    "Classical": [
+                        {method: "HGS", gap: 0.00, cost: 3.13, time: "2m"},
+                        {method: "OR Tools", gap: 0.00, cost: 3.13, time: "5h"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 7.35, cost: 3.36, time: "<1s"},
+                        {method: "AM", gap: 1.28, cost: 3.17, time: "<1s"},
+                        {method: "POMO", gap: 8.95, cost: 3.41, time: "<1s"},
+                        {method: "Sym-NCO", gap: 0.64, cost: 3.15, time: "<1s"},
+                        {method: "AM-XL", gap: 1.26, cost: 3.17, time: "<1s"},
+                        {method: "PolyNet", gap: 1.98, cost: 3.18, time: "<1s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 4.79, cost: 3.28, time: "23s"},
+                        {method: "AM", gap: 0.78, cost: 3.15, time: "23s"},
+                        {method: "POMO", gap: 6.39, cost: 3.33, time: "39s"},
+                        {method: "Sym-NCO", gap: 0.35, cost: 3.14, time: "39s"},
+                        {method: "AM-XL", gap: 0.56, cost: 3.15, time: "39s"},
+                        {method: "PolyNet", gap: 0.15, cost: 3.13, time: "1m15s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 5.18, cost: 3.30, time: "2s"},
+                        {method: "AM", gap: 0.95, cost: 3.16, time: "2s"},
+                        {method: "POMO", gap: 7.03, cost: 3.35, time: "4s"},
+                        {method: "Sym-NCO", gap: 0.62, cost: 3.15, time: "4s"},
+                        {method: "AM-XL", gap: 0.64, cost: 3.15, time: "4s"},
+                        {method: "PolyNet", gap: 0.76, cost: 3.15, time: "5s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 6.39, cost: 3.33, time: "23s"},
+                        {method: "AM", gap: 0.96, cost: 3.16, time: "23s"},
+                        {method: "POMO", gap: 7.55, cost: 3.37, time: "42s"},
+                        {method: "Sym-NCO", gap: 0.63, cost: 3.15, time: "42s"},
+                        {method: "AM-XL", gap: 0.68, cost: 3.15, time: "42s"},
+                        {method: "PolyNet", gap: 0.16, cost: 3.13, time: "1m2s"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 4.95, cost: 3.28, time: "25s"},
+                        {method: "AM", gap: 0.32, cost: 3.14, time: "25s"},
+                        {method: "POMO", gap: 6.95, cost: 3.35, time: "38s"},
+                        {method: "Sym-NCO", gap: 0.24, cost: 3.14, time: "38s"},
+                        {method: "AM-XL", gap: 0.28, cost: 3.14, time: "38s"},
+                        {method: "PolyNet", gap: 0.12, cost: 3.13, time: "58s"}
+                    ]
+                },
+                "PDP": {
+                    "Classical": [
+                        {method: "OR Tools", gap: 3.16, cost: 4.70, time: "1h"},
+                        {method: "CPLEX", gap: 0.00, cost: 4.56, time: "7m23s"}
+                    ],
+                    "Greedy": [
+                        {method: "A2C", gap: 3.31, cost: 4.71, time: "<1s"},
+                        {method: "AM", gap: 5.70, cost: 4.82, time: "<1s"},
+                        {method: "POMO", gap: 6.36, cost: 4.85, time: "<1s"},
+                        {method: "Sym-NCO", gap: 3.07, cost: 4.70, time: "<1s"},
+                        {method: "AM-XL", gap: 3.29, cost: 4.71, time: "<1s"},
+                        {method: "PolyNet", gap: 2.92, cost: 4.69, time: "<1s"}
+                    ],
+                    "Sampling": [
+                        {method: "A2C", gap: 1.76, cost: 4.64, time: "23s"},
+                        {method: "AM", gap: 2.19, cost: 4.66, time: "23s"},
+                        {method: "POMO", gap: 2.63, cost: 4.68, time: "39s"},
+                        {method: "Sym-NCO", gap: 1.75, cost: 4.64, time: "39s"},
+                        {method: "AM-XL", gap: 1.75, cost: 4.64, time: "39s"},
+                        {method: "PolyNet", gap: 0.57, cost: 4.59, time: "1m36s"}
+                    ],
+                    "Multistart": [
+                        {method: "A2C", gap: 6.42, cost: 4.85, time: "2s"},
+                        {method: "AM", gap: 2.41, cost: 4.67, time: "2s"},
+                        {method: "POMO", gap: 2.19, cost: 4.66, time: "4s"},
+                        {method: "Sym-NCO", gap: 2.85, cost: 4.69, time: "4s"},
+                        {method: "AM-XL", gap: 1.97, cost: 4.65, time: "4s"},
+                        {method: "PolyNet", gap: 5.43, cost: 4.81, time: "5s"}
+                    ],
+                    "Augmentation": [
+                        {method: "A2C", gap: 1.11, cost: 4.61, time: "23s"},
+                        {method: "AM", gap: 1.54, cost: 4.63, time: "23s"},
+                        {method: "POMO", gap: 1.32, cost: 4.62, time: "42s"},
+                        {method: "Sym-NCO", gap: 0.95, cost: 4.61, time: "42s"},
+                        {method: "AM-XL", gap: 0.96, cost: 4.61, time: "42s"},
+                        {method: "PolyNet", gap: 0.58, cost: 4.59, time: "1m10s"}
+                    ],
+                    "Multistart_Aug": [
+                        {method: "A2C", gap: 4.06, cost: 4.75, time: "23s"},
+                        {method: "AM", gap: 1.52, cost: 4.63, time: "23s"},
+                        {method: "POMO", gap: 1.10, cost: 4.61, time: "42s"},
+                        {method: "Sym-NCO", gap: 0.89, cost: 4.60, time: "42s"},
+                        {method: "AM-XL", gap: 0.87, cost: 4.60, time: "42s"},
+                        {method: "PolyNet", gap: 1.03, cost: 4.61, time: "55s"}
+                    ]
+                }
+            }
+        };
+
+        // 初始化图表
+        let myChart = echarts.init(document.getElementById('mainChart'));
+
+        function updateCharts() {
+            const nodeSize = document.getElementById('node-select').value;
+            const problem = document.getElementById('problem-select').value;
+            const metric = document.getElementById('metric-select').value;
+            const category = document.getElementById('category-select').value;
+
+            // 获取数据
+            const data = benchmarkData[nodeSize][problem];
+            
+            // 根据类别筛选数据
+            let allMethods = [];
+            if (category === 'all') {
+                // 合并所有类别
+                if (data.Classical) allMethods = allMethods.concat(data.Classical);
+                if (data.Greedy) allMethods = allMethods.concat(data.Greedy);
+                if (data.Sampling) allMethods = allMethods.concat(data.Sampling);
+                if (data.Multistart) allMethods = allMethods.concat(data.Multistart);
+            } else {
+                const categoryMap = {
+                    'greedy': 'Greedy',
+                    'sampling': 'Sampling',
+                    'multistart': 'Multistart',
+                    'augmentation': 'Augmentation'
+                };
+                const cat = categoryMap[category];
+                if (data[cat]) {
+                    allMethods = data[cat];
+                }
+            }
+
+            // 提取方法名和指标值
+            const methods = allMethods.map(d => d.method);
+            let values = [];
+            let unit = '';
+
+            if (metric === 'Gap') {
+                values = allMethods.map(d => d.gap);
+                unit = '%';
+            } else if (metric === 'Cost') {
+                values = allMethods.map(d => d.cost);
+                unit = '';
+            } else if (metric === 'Time') {
+                // 时间转换为秒
+                values = allMethods.map(d => {
+                    const timeStr = d.time;
+                    if (timeStr.includes('h')) {
+                        const hours = parseFloat(timeStr);
+                        return hours * 3600;
+                    } else if (timeStr.includes('m') && !timeStr.includes('s')) {
+                        const mins = parseFloat(timeStr);
+                        return mins * 60;
+                    } else if (timeStr.includes('m') && timeStr.includes('s')) {
+                        const parts = timeStr.split('m');
+                        const mins = parseFloat(parts[0]);
+                        const secs = parseFloat(parts[1]);
+                        return mins * 60 + secs;
+                    } else if (timeStr.includes('s')) {
+                        return parseFloat(timeStr);
+                    } else {
+                        return parseFloat(timeStr);
+                    }
+                });
+                unit = 's';
+            }
+
+            // 更新统计信息
+            if (metric === 'Gap') {
+                const minIdx = values.indexOf(Math.min(...values));
+                document.getElementById('best-method').textContent = methods[minIdx];
+                document.getElementById('best-gap').textContent = values[minIdx].toFixed(2) + '%';
+                document.getElementById('best-time').textContent = allMethods[minIdx].time;
+                
+                const avgGap = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
+                document.getElementById('avg-gap').textContent = avgGap + '%';
+                document.getElementById('max-gap').textContent = Math.max(...values).toFixed(2) + '%';
+                document.getElementById('min-gap').textContent = Math.min(...values).toFixed(2) + '%';
+            }
+
+            document.getElementById('shown-count').textContent = methods.length;
+            document.getElementById('total-count').textContent = 
+                (data.Classical?.length || 0) + 
+                (data.Greedy?.length || 0) + 
+                (data.Sampling?.length || 0) + 
+                (data.Multistart?.length || 0);
+
+            // 更新图表标题
+            const problemNames = {
+                'TSP': '旅行商问题 (TSP)',
+                'CVRP': '带容量车辆路径问题 (CVRP)',
+                'OP': '定向问题 (OP)',
+                'PCTSP': '奖励收集TSP (PCTSP)',
+                'PDP': '取送货问题 (PDP)'
+            };
+            const metricNames = {
+                'Gap': 'Gap差距',
+                'Cost': '总成本',
+                'Time': '计算时间'
+            };
+            document.getElementById('chart-title').textContent = 
+                `${problemNames[problem]} - ${nodeSize}节点 - ${metricNames[metric]}对比`;
+
+            // 配置图表
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    },
+                    formatter: function(params) {
+                        const p = params[0];
+                        const method = allMethods[p.dataIndex];
+                        return `<strong>${p.name}</strong><br/>` +
+                               `Gap: ${method.gap}%<br/>` +
+                               `Cost: ${method.cost}<br/>` +
+                               `Time: ${method.time}`;
+                    }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: methods,
+                    axisLabel: {
+                        rotate: 45,
+                        fontSize: 11
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: metricNames[metric] + ' (' + unit + ')',
+                    nameTextStyle: {
+                        fontSize: 14,
+                        fontWeight: 'bold'
+                    }
+                },
+                series: [{
+                    name: metricNames[metric],
+                    type: 'bar',
+                    data: values,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            {offset: 0, color: '#667eea'},
+                            {offset: 1, color: '#764ba2'}
+                        ])
+                    },
+                    label: {
+                        show: true,
+                        position: 'top',
+                        fontSize: 10,
+                        formatter: function(params) {
+                            return params.value.toFixed(2);
+                        }
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                {offset: 0, color: '#f093fb'},
+                                {offset: 1, color: '#f5576c'}
+                            ])
+                        }
+                    }
+                }],
+                animationDuration: 1000,
+                animationEasing: 'cubicOut'
+            };
+
+            myChart.setOption(option, true);
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('load', function() {
+            updateCharts();
+        });
+
+        // 响应式调整
+        window.addEventListener('resize', function() {
+            myChart.resize();
+        });
+    </script>
+</body>
+</html>
+

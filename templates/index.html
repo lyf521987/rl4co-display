@@ -422,9 +422,9 @@
             </div>
             <div class="nav-links">
                 <a href="#home">首页</a>
-                <a href="#config">模型配置</a>
+                <a href="#config">训练模型</a>
+                <a href="/benchmark">算法对比</a>
                 <a href="#about">关于项目</a>
-                <a href="#features">功能特性</a>
             </div>
         </nav>
     </header>
@@ -468,9 +468,13 @@
                         </select>
                         <p class="description">选择用于求解组合优化问题的深度强化学习模型</p>
                     </div>
-
+                </form>
+            </div>
+            <div class="config-card">
+                <h3><span class="icon">⁉️</span> 问题类型选择</h3>
+                <form id="rl-config-form">
                     <div class="form-group">
-                        <label for="problem-select">问题类型</label>
+                        <label for="problem-select">选择问题类型</label>
                         <select id="problem-select" name="problem">
                             <option value="tsp">TSP (Traveling Salesman Problem)</option>
                             <option value="cvrp">CVRP (Capacitated Vehicle Routing Problem)（敬请期待）</option>
@@ -480,9 +484,58 @@
                             <option value="mdpp">MDPP (Multiple Depot Pickup Problem)（敬请期待）</option>
                         </select>
                         <p class="description">选择要解决的组合优化问题类型</p>
+                  </div>
+                  </form>
+              </div>
+
+            <div class="config-card">
+                <h3><span class="icon">📚</span> 模型知识库</h3>
+                <div class="form-group">
+                    <label for="model-info-select">选择模型</label>
+                    <select id="model-info-select" name="model-info">
+                        <option value="">-- 请选择要了解的模型 --</option>
+                        <optgroup label="构造方法（自回归）">
+                            <option value="AM">AM - Attention Model</option>
+                            <option value="PtrNet">PtrNet - Pointer Network</option>
+                            <option value="POMO">POMO - Policy Optimization with Multiple Optima</option>
+                            <option value="HAM">HAM - Hierarchical Attention Model</option>
+                            <option value="SymNCO">Sym-NCO - Symmetric Neural Combinatorial Optimization</option>
+                            <option value="PolyNet">PolyNet - Polyak Averaging Network</option>
+                            <option value="MTPOMO">MTPOMO - Multi-Task POMO</option>
+                            <option value="MVMoE">MVMoE - Multi-View Mixture of Experts</option>
+                            <option value="L2D">L2D - Learn to Delegate</option>
+                            <option value="HGNN">HGNN - Heterogeneous Graph Neural Network</option>
+                            <option value="MatNet">MatNet - Matrix Network</option>
+                            <option value="DF">DF - Distribution Fitting</option>
+                        </optgroup>
+                        <optgroup label="构造方法（非自回归）">
+                            <option value="DeepACO">DeepACO - Deep Ant Colony Optimization</option>
+                            <option value="GFACS">GFACS - Graph-based Fast Adaptive Construction Solver</option>
+                            <option value="GLOP">GLOP - Generalized Learning for Optimization Problems</option>
+                        </optgroup>
+                        <optgroup label="改进方法">
+                            <option value="DACT">DACT - Dual Attention with Cross Transformation</option>
+                            <option value="N2S">N2S - Neural to Symbolic</option>
+                            <option value="NeuOpt">NeuOpt - Neural Optimizer</option>
+                        </optgroup>
+                        <optgroup label="强化学习算法">
+                            <option value="REINFORCE">REINFORCE</option>
+                            <option value="A2C">A2C - Advantage Actor-Critic</option>
+                            <option value="PPO">PPO - Proximal Policy Optimization</option>
+                        </optgroup>
+                        <optgroup label="传导式强化学习">
+                            <option value="ActiveSearch">Active Search</option>
+                            <option value="EAS">EAS - Efficient Active Search</option>
+                        </optgroup>
+                    </select>
+                    <p class="description">选择一个模型查看其详细信息、论文出处和技术架构</p>
                 </div>
-                </form>
+
+                <button type="button" class="start-button" onclick="viewModelInfo()" style="margin-top: 0.5rem;">
+                    🔍 查看详情
+                </button>
             </div>
+        </section>
 
             <div class="config-card">
                 <h3><span class="icon">⚙️</span> 策略配置</h3>
@@ -564,6 +617,18 @@
 
                 <div class="training-log" id="training-log">
                     <div style="color: #999; text-align: center;">等待训练日志...</div>
+                </div>
+            </div>
+
+            <!-- 训练曲线显示 -->
+            <div id="training-curves-container" class="progress-container" style="display: none;">
+                <h4 style="color: #667eea; margin-bottom: 1rem;">📈 训练曲线（实时更新）</h4>
+                <div style="background: white; padding: 1rem; border-radius: 8px; text-align: center;">
+                    <img id="training-curve-img" 
+                         src="" 
+                         alt="训练曲线" 
+                         style="width: 100%; max-width: 900px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <p id="curve-update-info" style="margin-top: 0.5rem; color: #27ae60; font-weight: bold;"></p>
                 </div>
             </div>
 
@@ -697,6 +762,10 @@
                     case 'info':
                         addLogEntry(data.message);
                         break;
+                    case 'plot':
+                        updateTrainingCurve(data.plot_url, data.message);
+                        addLogEntry('📊 ' + data.message);
+                        break;
                     case 'complete':
                         handleTrainingComplete(data);
                         break;
@@ -730,6 +799,30 @@
             metricEpoch.textContent = `${data.epoch}/${data.total_epochs}`;
             metricLoss.textContent = data.loss.toFixed(4);
             metricReward.textContent = data.reward.toFixed(4);
+        }
+
+        // 更新训练曲线图
+        function updateTrainingCurve(plotUrl, message) {
+            const container = document.getElementById('training-curves-container');
+            const img = document.getElementById('training-curve-img');
+            const info = document.getElementById('curve-update-info');
+
+            // 显示曲线容器
+            container.style.display = 'block';
+
+            // 添加时间戳防止浏览器缓存
+            const timestamp = new Date().getTime();
+            img.src = plotUrl + '?t=' + timestamp;
+
+            // 更新提示信息
+            info.textContent = message;
+
+            // 添加淡入效果
+            img.style.opacity = '0.5';
+            img.onload = function() {
+                img.style.transition = 'opacity 0.3s';
+                img.style.opacity = '1';
+            };
         }
 
         // 添加日志条目
@@ -800,16 +893,43 @@
                 </div>
             `;
 
+            // 如果有训练曲线，显示训练曲线
+            if (results.training_curve) {
+                resultsHTML += `
+                    <div style="grid-column: 1 / -1; margin-top: 1rem;">
+                        <div class="result-label" style="margin-bottom: 1rem;">📈 训练曲线</div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 12px;">
+                            <img src="${results.training_curve}?t=${new Date().getTime()}" 
+                                 style="width: 100%; border-radius: 8px; background: white;" 
+                                 alt="训练曲线">
+                            <p style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.9; text-align: center;">
+                                📊 Loss 和 Reward 随训练轮次的变化趋势
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+
             // 如果有可视化图片，添加图片展示
             if (results.plot_paths && results.plot_paths.length > 0) {
                 resultsHTML += '<div style="grid-column: 1 / -1; margin-top: 1rem;">';
-                resultsHTML += '<div class="result-label" style="margin-bottom: 1rem;">路径可视化对比</div>';
-                resultsHTML += '<div style="display: grid; gap: 1rem;">';
+                resultsHTML += '<div class="result-label" style="margin-bottom: 1rem;">📊 路径可视化对比</div>';
+                resultsHTML += '<div style="display: grid; gap: 1.5rem;">';
                 results.plot_paths.forEach((path, index) => {
                     resultsHTML += `
-                        <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
-                            <h4 style="margin-bottom: 0.5rem;">问题 ${index + 1}</h4>
-                            <img src="${path}" style="width: 100%; border-radius: 8px;" alt="路径对比图 ${index + 1}">
+                        <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 12px;">
+                            <h4 style="margin-bottom: 1rem; font-size: 1.1rem;">问题 ${index + 1} - 静态对比图</h4>
+                            <img src="${path}" style="width: 100%; border-radius: 8px; margin-bottom: 1rem;" alt="路径对比图 ${index + 1}">
+                            
+                            ${results.animation_paths && results.animation_paths[index] ? `
+                                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid rgba(255,255,255,0.2);">
+                                    <h4 style="margin-bottom: 1rem; font-size: 1.1rem;">🎬 动态路线生成过程</h4>
+                                    <img src="${results.animation_paths[index]}" style="width: 100%; border-radius: 8px; background: white;" alt="动态路线图 ${index + 1}">
+                                    <p style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.9; text-align: center;">
+                                        ⏱️ 动画展示路线逐步构建过程和成本变化
+                                    </p>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 });
@@ -876,6 +996,20 @@
             if (this.value < 1) this.value = 1;
             if (this.value > 2048) this.value = 2048;
         });
+
+        // 查看模型详情
+        function viewModelInfo() {
+            const modelSelect = document.getElementById('model-info-select');
+            const modelValue = modelSelect.value;
+            
+            if (!modelValue) {
+                alert('请先选择一个模型');
+                return;
+            }
+            
+            // 跳转到模型详情页面
+            window.open('/model/' + modelValue, '_blank');
+        }
     </script>
 </body>
 </html>

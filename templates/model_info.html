@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ model_data.name }} - 模型详情 | RL4CO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .model-title {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .model-subtitle {
+            font-size: 1.3rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .category-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 50px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .paper-link {
+            display: inline-block;
+            background: #f5f5f5;
+            padding: 0.8rem 1.5rem;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-top: 1rem;
+        }
+
+        .paper-link:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            color: #667eea;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 3px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-content {
+            line-height: 1.8;
+            color: #444;
+            font-size: 1.05rem;
+        }
+
+        .section-content h4 {
+            color: #667eea;
+            margin-top: 1.5rem;
+            margin-bottom: 0.8rem;
+            font-size: 1.2rem;
+        }
+
+        .section-content p {
+            margin-bottom: 1rem;
+        }
+
+        .section-content ul, .section-content ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-content li {
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+        }
+
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .pros, .cons {
+            padding: 1.5rem;
+            border-radius: 10px;
+        }
+
+        .pros {
+            background: rgba(76, 175, 80, 0.1);
+            border-left: 4px solid #4CAF50;
+        }
+
+        .cons {
+            background: rgba(244, 67, 54, 0.1);
+            border-left: 4px solid #f44336;
+        }
+
+        .pros h4 {
+            color: #4CAF50;
+        }
+
+        .cons h4 {
+            color: #f44336;
+        }
+
+        .back-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .back-button:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .info-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-card h5 {
+            color: #667eea;
+            margin-bottom: 0.8rem;
+            font-size: 1.1rem;
+        }
+
+        .info-card p {
+            color: #666;
+            margin: 0;
+        }
+
+        code {
+            background: #f5f5f5;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #e83e8c;
+        }
+
+        @media (max-width: 768px) {
+            .pros-cons {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="model-title">{{ model_data.name }}</h1>
+            <p class="model-subtitle">{{ model_data.full_name }}</p>
+            
+            <div style="margin-top: 1rem;">
+                <span class="category-badge">{{ model_data.category }}</span>
+                {% if model_data.year %}
+                <span class="category-badge">{{ model_data.year }}</span>
+                {% endif %}
+            </div>
+            
+            {% if model_data.paper_url %}
+            <a href="{{ model_data.paper_url }}" target="_blank" class="paper-link">
+                📄 查看论文 ({{ model_data.paper_venue }})
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- 核心定位 -->
+        <div class="content-section">
+            <h2 class="section-title">🎯 核心定位</h2>
+            <div class="section-content">
+                {{ model_data.core_concept | safe }}
+            </div>
+        </div>
+
+        <!-- 技术架构 -->
+        <div class="content-section">
+            <h2 class="section-title">🏗️ 技术架构与创新</h2>
+            <div class="section-content">
+                {{ model_data.architecture | safe }}
+            </div>
+        </div>
+
+        <!-- 关键创新 -->
+        {% if model_data.innovations %}
+        <div class="content-section">
+            <h2 class="section-title">💡 关键创新点</h2>
+            <div class="section-content">
+                {{ model_data.innovations | safe }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 性能表现 -->
+        <div class="content-section">
+            <h2 class="section-title">📊 性能表现</h2>
+            <div class="section-content">
+                {{ model_data.performance | safe }}
+            </div>
+        </div>
+
+        <!-- 优势与局限 -->
+        <div class="content-section">
+            <h2 class="section-title">⚖️ 优势与局限</h2>
+            <div class="pros-cons">
+                <div class="pros">
+                    <h4>✅ 优势</h4>
+                    {{ model_data.advantages | safe }}
+                </div>
+                <div class="cons">
+                    <h4>⚠️ 局限性</h4>
+                    {{ model_data.limitations | safe }}
+                </div>
+            </div>
+        </div>
+
+        <!-- 应用场景 -->
+        {% if model_data.applications %}
+        <div class="content-section">
+            <h2 class="section-title">🎯 适用场景</h2>
+            <div class="section-content">
+                {{ model_data.applications | safe }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 返回按钮 -->
+        <div style="text-align: center; margin-top: 2rem;">
+            <a href="/home" class="back-button">← 返回首页</a>
+        </div>
+    </div>
+</body>
+</html>
+

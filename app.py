@@ -13,6 +13,12 @@ from io import StringIO
 import matplotlib
 matplotlib.use('Agg')  # 使用非GUI后端
 import matplotlib.pyplot as plt
+from PIL import Image
+import numpy as np
+
+# 配置中文字体支持
+matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS']
+matplotlib.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
 # 导入 RL4CO 相关模块
 try:
@@ -40,6 +46,170 @@ CHECKPOINTS_DIR = "checkpoints"
 os.makedirs(PLOTS_DIR, exist_ok=True)
 os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
 
+
+def create_route_animation(td, actions, save_path, title="路线生成过程", fps=2):
+    """
+    创建TSP路线逐步生成的动态GIF
+    
+    参数:
+        td: TensorDict，包含城市坐标等信息
+        actions: numpy数组，访问城市的顺序
+        save_path: GIF保存路径
+        title: 图表标题
+        fps: 帧率（每秒帧数）
+    """
+    # 提取城市坐标
+    if hasattr(td, 'get'):
+        locs = td.get('locs', td['locs']).cpu().numpy()
+    else:
+        locs = td['locs'].cpu().numpy()
+    
+    num_cities = len(locs)
+    frames = []
+    
+    # 计算每一步的累计距离
+    def calculate_partial_distance(locs, actions, step):
+        """计算到第step步为止的累计距离"""
+        if step < 1:
+            return 0.0
+        total_dist = 0.0
+        for i in range(step):
+            city_a = locs[actions[i]]
+            # 如果是最后一步，返回起点；否则继续下一个城市
+            if i + 1 < len(actions):
+                city_b = locs[actions[i + 1]]
+            else:
+                city_b = locs[actions[0]]  # 返回起点
+            dist = np.sqrt(np.sum((city_a - city_b) ** 2))
+            total_dist += dist
+        return total_dist
+    
+    # 为每一步生成一帧图像
+    for step in range(num_cities + 1):
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        # 绘制所有城市点
+        ax.scatter(locs[:, 0], locs[:, 1], c='lightblue', s=200, 
+                  zorder=3, alpha=0.6, edgecolors='black', linewidths=2)
+        
+        # 标注城市编号
+        for i, (x, y) in enumerate(locs):
+            ax.text(x, y, str(i), fontsize=10, ha='center', va='center',
+                   fontweight='bold', color='darkblue')
+        
+        # 绘制已经构建的路径
+        if step > 0:
+            for i in range(step):
+                start = locs[actions[i]]
+                if i + 1 < len(actions):
+                    end = locs[actions[i + 1]]
+                else:
+                    end = locs[actions[0]]  # 最后返回起点
+                
+                # 绘制路径线
+                ax.plot([start[0], end[0]], [start[1], end[1]], 
+                       'b-', linewidth=3, alpha=0.7, zorder=1)
+                
+                # 添加箭头表示方向
+                mid_x, mid_y = (start[0] + end[0]) / 2, (start[1] + end[1]) / 2
+                dx, dy = end[0] - start[0], end[1] - start[1]
+                ax.annotate('', xy=(mid_x + dx*0.1, mid_y + dy*0.1), 
+                          xytext=(mid_x - dx*0.1, mid_y - dy*0.1),
+                          arrowprops=dict(arrowstyle='->', color='blue', 
+                                        lw=2, alpha=0.7))
+        
+        # 高亮当前访问的城市
+        if step > 0 and step <= num_cities:
+            current_city = actions[step - 1]
+            ax.scatter(locs[current_city, 0], locs[current_city, 1], 
+                      c='red', s=400, zorder=5, marker='*', 
+                      edgecolors='darkred', linewidths=2,
+                      label=f'当前: 城市 {current_city}')
+        
+        # 高亮起点
+        start_city = actions[0]
+        ax.scatter(locs[start_city, 0], locs[start_city, 1], 
+                  c='green', s=300, zorder=4, marker='s',
+                  edgecolors='darkgreen', linewidths=2,
+                  label=f'起点: 城市 {start_city}')
+        
+        # 计算当前累计成本
+        current_cost = calculate_partial_distance(locs, actions, step)
+        
+        # 设置标题和信息
+        if step == 0:
+            info_text = "开始构建路线..."
+        elif step < num_cities:
+            info_text = f"第 {step} 步 | 已访问 {step} 个城市 | 累计成本: {current_cost:.3f}"
+        else:
+            # 最后一步，返回起点
+            final_dist = np.sqrt(np.sum((locs[actions[-1]] - locs[actions[0]]) ** 2))
+            total_cost = current_cost + final_dist
+            info_text = f"完成！总共 {num_cities} 个城市 | 总成本: {total_cost:.3f}"
+        
+        ax.set_title(f"{title}\n{info_text}", fontsize=14, fontweight='bold', pad=20)
+        
+        # 设置坐标轴
+        ax.set_xlim(-0.05, 1.05)
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_aspect('equal')
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.set_xlabel('X 坐标', fontsize=12)
+        ax.set_ylabel('Y 坐标', fontsize=12)
+        
+        # 添加图例
+        if step > 0:
+            ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
+        
+        # 添加进度条
+        progress = step / num_cities
+        ax.text(0.5, -0.12, f"进度: {int(progress * 100)}%", 
+               ha='center', va='top', transform=ax.transAxes,
+               fontsize=11, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+        
+        # 保存当前帧为图像
+        fig.tight_layout()
+        
+        # 将图形转换为PIL Image（兼容新旧版本matplotlib）
+        fig.canvas.draw()
+        try:
+            # 新版本 matplotlib (>= 3.8)
+            buf = fig.canvas.buffer_rgba()
+            image = np.frombuffer(buf, dtype=np.uint8)
+            image = image.reshape(fig.canvas.get_width_height()[::-1] + (4,))
+            # 转换 RGBA 到 RGB
+            image = image[:, :, :3]
+        except AttributeError:
+            # 旧版本 matplotlib
+            try:
+                image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+                image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+            except AttributeError:
+                # 更老的版本，使用 tostring_argb
+                buf = np.frombuffer(fig.canvas.tostring_argb(), dtype=np.uint8)
+                buf = buf.reshape(fig.canvas.get_width_height()[::-1] + (4,))
+                # ARGB 转 RGB
+                image = buf[:, :, 1:]
+        
+        frames.append(Image.fromarray(image))
+        
+        plt.close(fig)
+    
+    # 在最后一帧停留更长时间
+    for _ in range(3):
+        frames.append(frames[-1])
+    
+    # 保存为GIF
+    duration = int(1000 / fps)  # 每帧持续时间（毫秒）
+    frames[0].save(
+        save_path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=duration,
+        loop=0,
+        optimize=False
+    )
+
 @app.route('/')
 def Index_login():  # put application's code here
     return render_template('login.html')
@@ -47,6 +217,920 @@ def Index_login():  # put application's code here
 @app.route('/res')
 def Index_res():  # put application's code here
     return render_template('res.html')
+
+@app.route('/benchmark')
+def benchmark():  # 算法性能对比页面
+    return render_template('benchmark.html')
+
+# 模型知识库数据
+MODEL_DATABASE = {
+    "AM": {
+        "name": "AM",
+        "full_name": "Attention Model - 注意力模型",
+        "category": "构造方法（自回归）",
+        "year": "2019",
+        "paper_url": "https://arxiv.org/abs/1803.08475",
+        "paper_venue": "ICLR 2019",
+        "core_concept": """
+            <p>Attention Model (AM) 是首个成功将Transformer架构应用于组合优化问题的深度强化学习模型。它利用注意力机制捕捉节点间的全局依赖关系，通过编码器-解码器结构逐步构建解决方案。</p>
+            <div class="highlight-box">
+                <strong>核心思想</strong>：将TSP等路由问题视为序列到序列(seq2seq)问题，使用多头注意力机制学习节点的重要性，并通过强化学习优化策略网络。
+            </div>
+        """,
+        "architecture": """
+            <h4>1. 编码器（Encoder）</h4>
+            <p>使用Transformer编码器处理输入节点特征，生成节点的嵌入表示：</p>
+            <ul>
+                <li><strong>输入</strong>：节点坐标 (x, y) 或其他特征</li>
+                <li><strong>多头注意力</strong>：捕捉节点间的全局关系</li>
+                <li><strong>前馈网络</strong>：提取高层特征</li>
+                <li><strong>输出</strong>：节点嵌入向量</li>
+            </ul>
+            
+            <h4>2. 解码器（Decoder）</h4>
+            <p>自回归地生成访问序列：</p>
+            <ul>
+                <li><strong>上下文嵌入</strong>：聚合已访问节点和当前状态</li>
+                <li><strong>注意力评分</strong>：计算每个候选节点的选择概率</li>
+                <li><strong>动作掩码</strong>：确保不重复访问已选节点</li>
+                <li><strong>采样/贪心</strong>：根据概率分布选择下一个节点</li>
+            </ul>
+            
+            <h4>3. 训练策略</h4>
+            <p>使用REINFORCE算法进行策略梯度优化：</p>
+            <ul>
+                <li><strong>Baseline</strong>：使用贪心rollout或指数移动平均降低方差</li>
+                <li><strong>Reward</strong>：路径总长度的负值</li>
+                <li><strong>梯度估计</strong>：通过采样多条路径估计策略梯度</li>
+            </ul>
+        """,
+        "innovations": """
+            <ul>
+                <li>🔹 <strong>Transformer用于CO</strong>：首次将Transformer成功应用于组合优化</li>
+                <li>🔹 <strong>无需监督数据</strong>：纯强化学习训练，不需要最优解标签</li>
+                <li>🔹 <strong>问题无关架构</strong>：可轻松适配TSP、VRP等多种问题</li>
+                <li>🔹 <strong>并行计算友好</strong>：Transformer结构支持高效GPU并行</li>
+            </ul>
+        """,
+        "performance": """
+            <div class="info-grid">
+                <div class="info-card">
+                    <h5>TSP-50</h5>
+                    <p>Gap: 1.41%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>TSP-100</h5>
+                    <p>Gap: 1.73%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>CVRP-50</h5>
+                    <p>Gap: 5.30%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>CVRP-100</h5>
+                    <p>Gap: 3.39%<br>Time: <1s</p>
+                </div>
+            </div>
+            <p style="margin-top: 1rem;">在单次前向传播下，AM在TSP-50上达到1.41%的Gap，速度极快但质量略逊于后续改进方法。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>推理速度快（<1秒）</li>
+                <li>架构简洁，易于理解和实现</li>
+                <li>可扩展性好，支持不同规模问题</li>
+                <li>泛化能力强，训练规模可迁移</li>
+                <li>开创性工作，影响力大</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>单次解码质量有限（Gap~1-2%）</li>
+                <li>未充分利用问题对称性</li>
+                <li>训练需要大量样本</li>
+                <li>对超参数较敏感</li>
+            </ul>
+        """,
+        "applications": """
+            <p>适用于需要快速求解的场景：</p>
+            <ul>
+                <li>实时物流规划</li>
+                <li>在线路径优化</li>
+                <li>大规模问题的快速近似</li>
+                <li>作为其他方法的baseline</li>
+            </ul>
+        """
+    },
+    "POMO": {
+        "name": "POMO",
+        "full_name": "Policy Optimization with Multiple Optima",
+        "category": "构造方法（自回归）",
+        "year": "2021",
+        "paper_url": "https://arxiv.org/abs/2010.16011",
+        "paper_venue": "NeurIPS 2021",
+        "core_concept": """
+            <p>POMO 通过从不同起点同时构建多条路径来利用TSP等问题的对称性，显著提升了求解质量而不增加模型复杂度。</p>
+            <div class="highlight-box">
+                <strong>核心洞察</strong>：TSP问题具有旋转对称性 - 从任意节点出发都能得到等价的最优解。POMO利用这一特性，在训练和推理时同时考虑所有可能的起点。
+            </div>
+        """,
+        "architecture": """
+            <h4>1. 多起点并行解码</h4>
+            <p>与AM的关键区别：</p>
+            <ul>
+                <li><strong>AM</strong>：固定从节点0开始</li>
+                <li><strong>POMO</strong>：同时从所有N个节点开始，生成N条路径</li>
+            </ul>
+            
+            <h4>2. 增强训练策略</h4>
+            <p>训练时的优势：</p>
+            <ul>
+                <li>每个batch实际产生 N×batch_size 条路径</li>
+                <li>所有路径共享梯度，加速学习</li>
+                <li>利用对称性，减少训练方差</li>
+            </ul>
+            
+            <h4>3. 推理时的策略</h4>
+            <ul>
+                <li><strong>训练模式</strong>：使用所有N个起点的平均损失</li>
+                <li><strong>推理模式</strong>：取N条路径中的最优解</li>
+                <li><strong>增强版本</strong>：可结合数据增强进一步提升（8×N条路径）</li>
+            </ul>
+        """,
+        "innovations": """
+            <ul>
+                <li>🔹 <strong>对称性利用</strong>：充分利用TSP的旋转不变性</li>
+                <li>🔹 <strong>训练加速</strong>：N倍数据增强无额外计算成本</li>
+                <li>🔹 <strong>推理提升</strong>：N条路径选最优，质量显著提高</li>
+                <li>🔹 <strong>无架构修改</strong>：基于AM架构，无需重新设计</li>
+            </ul>
+        """,
+        "performance": """
+            <div class="info-grid">
+                <div class="info-card">
+                    <h5>TSP-50 (Greedy)</h5>
+                    <p>Gap: 0.89%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>TSP-50 (Sampling)</h5>
+                    <p>Gap: 0.18%<br>Time: 1m</p>
+                </div>
+                <div class="info-card">
+                    <h5>TSP-100 (Greedy)</h5>
+                    <p>Gap: 0.05%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>CVRP-50</h5>
+                    <p>Gap: 3.99%<br>Time: <1s</p>
+                </div>
+            </div>
+            <p style="margin-top: 1rem;"><strong>显著优于AM</strong>：在TSP-50上从1.41%降至0.89%，接近50%的质量提升！</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>质量大幅提升（AM的1.5-2倍）</li>
+                <li>训练速度快（数据利用率高）</li>
+                <li>推理仍然很快（<1秒）</li>
+                <li>实现简单，基于AM小改</li>
+                <li>适用于所有对称性问题</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>仅适用于具有对称性的问题</li>
+                <li>GPU内存占用增加N倍</li>
+                <li>对非对称问题无优势</li>
+                <li>极大规模问题内存压力大</li>
+            </ul>
+        """,
+        "applications": """
+            <p>POMO特别适合：</p>
+            <ul>
+                <li>TSP及其变体（对称性强）</li>
+                <li>CVRP等车辆路径问题</li>
+                <li>需要高质量解的实时应用</li>
+                <li>GPU资源充足的场景</li>
+            </ul>
+        """
+    },
+    "SymNCO": {
+        "name": "Sym-NCO",
+        "full_name": "Symmetric Neural Combinatorial Optimization",
+        "category": "构造方法（自回归）",
+        "year": "2022",
+        "paper_url": "https://arxiv.org/abs/2205.13209",
+        "paper_venue": "NeurIPS 2022",
+        "core_concept": """
+            <p>Sym-NCO 将对称性的利用从推理扩展到整个网络架构，通过设计等变神经网络来强制模型学习问题的内在对称结构。</p>
+            <div class="highlight-box">
+                <strong>核心创新</strong>：不仅像POMO那样在数据层面利用对称性，而是在网络层面嵌入对称性约束，使模型从根本上学习到旋转、翻转等对称不变的特征。
+            </div>
+        """,
+        "architecture": """
+            <h4>1. 等变网络设计</h4>
+            <p>关键架构特点：</p>
+            <ul>
+                <li><strong>等变编码器</strong>：对输入的旋转/翻转变换，输出也相应变换</li>
+                <li><strong>不变特征</strong>：提取对称不变的全局特征</li>
+                <li><strong>条件解码</strong>：基于不变特征的条件生成</li>
+            </ul>
+            
+            <h4>2. 对称性分类</h4>
+            <p>Sym-NCO区分并利用三类对称性：</p>
+            <ul>
+                <li><strong>旋转对称</strong>：任意节点可作为起点</li>
+                <li><strong>翻转对称</strong>：顺时针/逆时针路径等价</li>
+                <li><strong>排列对称</strong>：节点标签可任意排列</li>
+            </ul>
+            
+            <h4>3. 训练优化</h4>
+            <ul>
+                <li>对称增强的数据生成</li>
+                <li>等变性损失约束</li>
+                <li>多起点联合训练</li>
+            </ul>
+        """,
+        "innovations": """
+            <ul>
+                <li>🔹 <strong>等变网络架构</strong>：从网络层面保证对称性</li>
+                <li>🔹 <strong>理论保证</strong>：严格的数学对称性约束</li>
+                <li>🔹 <strong>泛化能力</strong>：更好的分布外泛化</li>
+                <li>🔹 <strong>参数效率</strong>：通过对称性减少需要学习的参数</li>
+            </ul>
+        """,
+        "performance": """
+            <div class="info-grid">
+                <div class="info-card">
+                    <h5>TSP-50 (Greedy)</h5>
+                    <p>Gap: 0.47%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>TSP-50 (Aug)</h5>
+                    <p>Gap: 0.01%<br>Time: 1m</p>
+                </div>
+                <div class="info-card">
+                    <h5>TSP-20</h5>
+                    <p>Gap: 0.05%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>CVRP-50</h5>
+                    <p>Gap: 4.61%<br>Time: <1s</p>
+                </div>
+            </div>
+            <p style="margin-top: 1rem;"><strong>目前最优</strong>：在TSP-50上达到0.47% Gap（Greedy），使用数据增强后仅0.01%，几乎最优！</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>质量最优（当前SOTA之一）</li>
+                <li>理论基础扎实</li>
+                <li>泛化能力强</li>
+                <li>参数效率高</li>
+                <li>训练稳定性好</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>实现复杂度高</li>
+                <li>需要深入理解群论</li>
+                <li>计算开销略高于AM/POMO</li>
+                <li>对非对称问题适用性有限</li>
+            </ul>
+        """,
+        "applications": """
+            <p>Sym-NCO最适合：</p>
+            <ul>
+                <li>对解质量要求极高的场景</li>
+                <li>需要分布外泛化的应用</li>
+                <li>学术研究和方法对比</li>
+                <li>对称性强的CO问题</li>
+            </ul>
+        """
+    },
+    "REINFORCE": {
+        "name": "REINFORCE",
+        "full_name": "REINFORCE Algorithm",
+        "category": "强化学习算法",
+        "year": "1992",
+        "paper_url": "https://link.springer.com/article/10.1007/BF00992696",
+        "paper_venue": "Machine Learning 1992",
+        "core_concept": """
+            <p>REINFORCE 是最经典的策略梯度算法，直接优化策略网络的参数以最大化期望回报。</p>
+            <div class="highlight-box">
+                <strong>核心思想</strong>：通过蒙特卡洛采样估计策略梯度，根据实际获得的回报调整策略，使好的动作更可能被选择。
+            </div>
+        """,
+        "architecture": """
+            <h4>算法流程</h4>
+            <ol>
+                <li><strong>采样</strong>：根据当前策略π生成完整的轨迹</li>
+                <li><strong>计算回报</strong>：R = -路径长度（TSP情况）</li>
+                <li><strong>计算梯度</strong>：∇J = E[∇log π(a|s) · (R - b)]</li>
+                <li><strong>更新参数</strong>：θ ← θ + α∇J</li>
+            </ol>
+            
+            <h4>Baseline技巧</h4>
+            <p>为降低梯度方差，使用baseline b：</p>
+            <ul>
+                <li><strong>移动平均</strong>：b = EMA(R)</li>
+                <li><strong>Critic网络</strong>：b = V(s)</li>
+                <li><strong>Greedy rollout</strong>：b = 贪心解的回报</li>
+            </ul>
+        """,
+        "performance": """
+            <p>REINFORCE本身是训练算法，不是模型架构。它被用于训练AM、POMO等模型。</p>
+            <p>配合AM使用时的性能参考AM的数据。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>简单直观，易于实现</li>
+                <li>适用于任意策略网络</li>
+                <li>无需值函数近似</li>
+                <li>适合高维离散动作空间</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>梯度方差大</li>
+                <li>样本效率低</li>
+                <li>训练不稳定</li>
+                <li>需要大量episode</li>
+            </ul>
+        """
+    },
+    "DeepACO": {
+        "name": "DeepACO",
+        "full_name": "Deep Ant Colony Optimization",
+        "category": "构造方法（非自回归）",
+        "year": "2023",
+        "paper_url": "https://arxiv.org/abs/2309.14032",
+        "paper_venue": "NeurIPS 2023",
+        "core_concept": """
+            <p>DeepACO 将经典的蚁群优化算法与深度学习相结合，使用神经网络学习启发式信息，指导蚁群的路径搜索。</p>
+            <div class="highlight-box">
+                <strong>核心创新</strong>：用神经网络替代传统ACO的启发式函数，使算法能够从数据中学习问题特定的搜索策略，兼具ACO的全局搜索能力和深度学习的表征能力。
+            </div>
+        """,
+        "architecture": """
+            <h4>1. 神经网络启发式</h4>
+            <ul>
+                <li>使用GNN学习边的启发式值</li>
+                <li>替代传统的距离倒数启发式</li>
+                <li>能够捕捉复杂的问题结构</li>
+            </ul>
+            
+            <h4>2. 蚁群搜索</h4>
+            <ul>
+                <li>多只蚂蚁并行构建解</li>
+                <li>信息素更新机制</li>
+                <li>局部搜索优化</li>
+            </ul>
+            
+            <h4>3. 非自回归特性</h4>
+            <ul>
+                <li>所有蚂蚁同时构建解</li>
+                <li>并行度高，速度快</li>
+                <li>适合大规模问题</li>
+            </ul>
+        """,
+        "performance": """
+            <p>DeepACO在TSP上表现优异，特别是在大规模实例上。</p>
+            <div class="info-card">
+                <h5>特点</h5>
+                <p>• 质量高（接近最优）<br>• 大规模问题优势明显<br>• 可解释性强</p>
+            </div>
+        """,
+        "advantages": """
+            <ul>
+                <li>解质量高</li>
+                <li>可解释性强（基于ACO）</li>
+                <li>大规模问题表现好</li>
+                <li>结合深度学习和传统优化</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>推理时间较长</li>
+                <li>需要多次迭代</li>
+                <li>实现复杂</li>
+                <li>超参数较多</li>
+            </ul>
+        """
+    },
+    "MatNet": {
+        "name": "MatNet",
+        "full_name": "Matrix Network - 矩阵网络",
+        "category": "构造方法（自回归）",
+        "year": "2021",
+        "paper_url": "https://arxiv.org/abs/2106.11113",
+        "paper_venue": "NeurIPS 2021",
+        "core_concept": """
+            <p>MatNet 通过直接建模节点对之间的关系矩阵，实现了更强的表达能力和更好的性能。</p>
+            <div class="highlight-box">
+                <strong>核心思想</strong>：传统方法对每个节点独立编码，而MatNet使用矩阵表示节点对之间的关系，能够更好地捕捉图结构信息。
+            </div>
+        """,
+        "architecture": """
+            <h4>1. 矩阵编码器</h4>
+            <ul>
+                <li>构建节点对关系矩阵</li>
+                <li>使用矩阵注意力机制</li>
+                <li>捕捉高阶结构信息</li>
+            </ul>
+            
+            <h4>2. 解码策略</h4>
+            <ul>
+                <li>基于矩阵表示的动作选择</li>
+                <li>考虑已选路径的全局信息</li>
+                <li>动态更新关系矩阵</li>
+            </ul>
+        """,
+        "performance": """
+            <p>MatNet在TSP和VRP问题上都表现出色，特别是在大规模问题上优势明显。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>表达能力强</li>
+                <li>性能优异</li>
+                <li>适用于多种问题</li>
+                <li>对图结构建模充分</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>计算复杂度高（O(n²)）</li>
+                <li>内存占用大</li>
+                <li>训练时间较长</li>
+                <li>实现复杂</li>
+            </ul>
+        """
+    },
+    "A2C": {
+        "name": "A2C",
+        "full_name": "Advantage Actor-Critic",
+        "category": "强化学习算法",
+        "year": "2016",
+        "paper_url": "https://arxiv.org/abs/1602.01783",
+        "paper_venue": "ICML 2016",
+        "core_concept": """
+            <p>A2C 是Actor-Critic算法的同步版本，同时学习策略网络（Actor）和价值网络（Critic）。</p>
+            <div class="highlight-box">
+                <strong>核心思想</strong>：使用Critic网络估计状态价值，为Actor提供更稳定的训练信号，减少REINFORCE的方差问题。
+            </div>
+        """,
+        "architecture": """
+            <h4>算法组成</h4>
+            <ul>
+                <li><strong>Actor</strong>：策略网络π(a|s)</li>
+                <li><strong>Critic</strong>：价值网络V(s)</li>
+                <li><strong>Advantage</strong>：A(s,a) = R - V(s)</li>
+            </ul>
+            
+            <h4>训练流程</h4>
+            <ol>
+                <li>Actor生成动作并执行</li>
+                <li>Critic评估状态价值</li>
+                <li>计算优势函数</li>
+                <li>同时更新Actor和Critic</li>
+            </ol>
+        """,
+        "performance": """
+            <p>A2C在训练稳定性和样本效率上优于REINFORCE。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>训练更稳定</li>
+                <li>方差更小</li>
+                <li>收敛更快</li>
+                <li>样本效率高</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>需要额外的Critic网络</li>
+                <li>实现复杂度增加</li>
+                <li>超参数更多</li>
+                <li>可能陷入局部最优</li>
+            </ul>
+        """
+    },
+    "PPO": {
+        "name": "PPO",
+        "full_name": "Proximal Policy Optimization",
+        "category": "强化学习算法",
+        "year": "2017",
+        "paper_url": "https://arxiv.org/abs/1707.06347",
+        "paper_venue": "ArXiv 2017",
+        "core_concept": """
+            <p>PPO 通过限制策略更新幅度来平衡探索与开发，是目前最流行的策略梯度算法之一。</p>
+            <div class="highlight-box">
+                <strong>核心思想</strong>：使用裁剪目标函数，防止策略更新步长过大，确保训练稳定性。
+            </div>
+        """,
+        "architecture": """
+            <h4>PPO-Clip目标</h4>
+            <p>L(θ) = E[min(r(θ)A, clip(r(θ), 1-ε, 1+ε)A)]</p>
+            <ul>
+                <li><strong>r(θ)</strong>：新旧策略的概率比</li>
+                <li><strong>clip</strong>：限制在[1-ε, 1+ε]范围内</li>
+                <li><strong>A</strong>：优势函数</li>
+            </ul>
+            
+            <h4>训练特点</h4>
+            <ul>
+                <li>多次利用同一批数据</li>
+                <li>自适应调整学习率</li>
+                <li>稳定的策略改进</li>
+            </ul>
+        """,
+        "performance": """
+            <p>PPO在各种RL任务上都表现优异，被认为是最可靠的策略梯度算法。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>训练极其稳定</li>
+                <li>样本效率高</li>
+                <li>超参数不敏感</li>
+                <li>实现相对简单</li>
+                <li>工业界广泛使用</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>计算开销较大</li>
+                <li>需要多次迭代</li>
+                <li>墙钟时间较长</li>
+            </ul>
+        """
+    },
+    "PtrNet": {
+        "name": "PtrNet",
+        "full_name": "Pointer Network - 指针网络",
+        "category": "构造方法（自回归）",
+        "year": "2015",
+        "paper_url": "https://arxiv.org/abs/1506.03134",
+        "paper_venue": "NeurIPS 2015",
+        "core_concept": """
+            <p>Pointer Network 是最早将seq2seq模型应用于组合优化的开创性工作。</p>
+            <div class="highlight-box">
+                <strong>核心创新</strong>：输出层不是固定词表，而是"指向"输入序列中的元素，天然适合TSP等排列问题。
+            </div>
+        """,
+        "architecture": """
+            <h4>架构特点</h4>
+            <ul>
+                <li>LSTM编码器处理输入</li>
+                <li>注意力机制指向输入节点</li>
+                <li>自回归生成访问序列</li>
+            </ul>
+        """,
+        "performance": """
+            <p>作为早期工作，性能不如现代Transformer based方法，但具有重要的历史意义。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>开创性工作</li>
+                <li>概念简洁清晰</li>
+                <li>易于理解</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>LSTM序列化处理慢</li>
+                <li>性能不如现代方法</li>
+                <li>难以并行化</li>
+            </ul>
+        """
+    },
+    "HAM": {
+        "name": "HAM",
+        "full_name": "Hierarchical Attention Model",
+        "category": "构造方法（自回归）",
+        "year": "2020",
+        "paper_url": "https://arxiv.org/abs/2011.03227",
+        "paper_venue": "AAAI 2021",
+        "core_concept": """
+            <p>HAM 引入层次化注意力机制，在不同粒度上捕捉问题结构。</p>
+        """,
+        "architecture": """
+            <ul>
+                <li>全局注意力捕捉整体结构</li>
+                <li>局部注意力关注细节特征</li>
+                <li>多尺度特征融合</li>
+            </ul>
+        """,
+        "advantages": """
+            <ul>
+                <li>多尺度特征建模</li>
+                <li>性能提升</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>复杂度增加</li>
+                <li>训练难度提高</li>
+            </ul>
+        """
+    },
+    "PolyNet": {
+        "name": "PolyNet",
+        "full_name": "Polyak Averaging Network",
+        "category": "构造方法（自回归）",
+        "year": "2021",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>PolyNet 使用Polyak平均技术稳定训练过程。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>训练稳定</li>
+                <li>收敛平滑</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>额外内存开销</li>
+            </ul>
+        """
+    },
+    "MTPOMO": {
+        "name": "MTPOMO",
+        "full_name": "Multi-Task POMO",
+        "category": "构造方法（自回归）",
+        "year": "2022",
+        "paper_url": "https://arxiv.org/abs/2204.03236",
+        "paper_venue": "ArXiv 2022",
+        "core_concept": """
+            <p>MTPOMO 将POMO扩展到多任务学习场景，同时学习多种CO问题。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>知识迁移</li>
+                <li>训练效率高</li>
+                <li>泛化能力强</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>任务平衡困难</li>
+                <li>内存占用大</li>
+            </ul>
+        """
+    },
+    "MVMoE": {
+        "name": "MVMoE",
+        "full_name": "Multi-View Mixture of Experts",
+        "category": "构造方法（自回归）",
+        "year": "2023",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>MVMoE 使用混合专家模型，针对不同类型的问题实例使用不同的专家网络。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>适应性强</li>
+                <li>专业化处理</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>模型复杂</li>
+                <li>训练困难</li>
+            </ul>
+        """
+    },
+    "L2D": {
+        "name": "L2D",
+        "full_name": "Learn to Delegate",
+        "category": "构造方法（自回归）",
+        "year": "2023",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>L2D 学习何时使用神经网络求解，何时委托给传统启发式算法。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>灵活性高</li>
+                <li>结合优势</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>决策复杂</li>
+            </ul>
+        """
+    },
+    "HGNN": {
+        "name": "HGNN",
+        "full_name": "Heterogeneous Graph Neural Network",
+        "category": "构造方法（自回归）",
+        "year": "2022",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>HGNN 使用异构图神经网络建模不同类型节点和边的关系。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>表达力强</li>
+                <li>适用复杂问题</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>计算开销大</li>
+            </ul>
+        """
+    },
+    "DF": {
+        "name": "DF",
+        "full_name": "Distribution Fitting",
+        "category": "构造方法（自回归）",
+        "year": "2023",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>DF 通过拟合最优解的分布来生成高质量解。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>理论优雅</li>
+                <li>性能优秀</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>训练复杂</li>
+            </ul>
+        """
+    },
+    "GFACS": {
+        "name": "GFACS",
+        "full_name": "Graph-based Fast Adaptive Construction Solver",
+        "category": "构造方法（非自回归）",
+        "year": "2023",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>GFACS 使用图神经网络非自回归地构建解。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>速度极快</li>
+                <li>完全并行</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>质量可能不如自回归方法</li>
+            </ul>
+        """
+    },
+    "GLOP": {
+        "name": "GLOP",
+        "full_name": "Generalized Learning for Optimization Problems",
+        "category": "构造方法（非自回归）",
+        "year": "2023",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>GLOP 是一个通用的学习框架，适用于多种优化问题。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>通用性强</li>
+                <li>易于扩展</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>特定问题性能可能不如专用方法</li>
+            </ul>
+        """
+    },
+    "DACT": {
+        "name": "DACT",
+        "full_name": "Dual Attention with Cross Transformation",
+        "category": "改进方法",
+        "year": "2022",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>DACT 使用双重注意力机制和交叉变换来改进现有模型。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>即插即用</li>
+                <li>性能提升明显</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>计算开销增加</li>
+            </ul>
+        """
+    },
+    "N2S": {
+        "name": "N2S",
+        "full_name": "Neural to Symbolic",
+        "category": "改进方法",
+        "year": "2023",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>N2S 将神经网络的输出转换为符号化的优化算法。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>可解释性强</li>
+                <li>质量优秀</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>转换过程复杂</li>
+            </ul>
+        """
+    },
+    "NeuOpt": {
+        "name": "NeuOpt",
+        "full_name": "Neural Optimizer",
+        "category": "改进方法",
+        "year": "2023",
+        "paper_url": "#",
+        "paper_venue": "Research Paper",
+        "core_concept": """
+            <p>NeuOpt 使用神经网络学习优化算法本身。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>学习能力强</li>
+                <li>适应性好</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>训练复杂</li>
+                <li>泛化挑战</li>
+            </ul>
+        """
+    },
+    "ActiveSearch": {
+        "name": "ActiveSearch",
+        "full_name": "Active Search",
+        "category": "传导式强化学习",
+        "year": "2020",
+        "paper_url": "https://arxiv.org/abs/2012.05417",
+        "paper_venue": "ICLR 2021",
+        "core_concept": """
+            <p>Active Search 在测试时继续优化策略，通过主动搜索改进解质量。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>测试时优化</li>
+                <li>质量提升显著</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>推理时间长</li>
+                <li>计算资源需求高</li>
+            </ul>
+        """
+    },
+    "EAS": {
+        "name": "EAS",
+        "full_name": "Efficient Active Search",
+        "category": "传导式强化学习",
+        "year": "2021",
+        "paper_url": "https://arxiv.org/abs/2106.05126",
+        "paper_venue": "NeurIPS 2021",
+        "core_concept": """
+            <p>EAS 是Active Search的高效版本，减少了测试时优化的计算开销。</p>
+        """,
+        "advantages": """
+            <ul>
+                <li>更快的测试时优化</li>
+                <li>效率与质量平衡好</li>
+            </ul>
+        """,
+        "limitations": """
+            <ul>
+                <li>仍需额外计算</li>
+            </ul>
+        """
+    }
+}
+
+@app.route('/model/<model_id>')
+def model_info(model_id):
+    """模型详情页面"""
+    if model_id not in MODEL_DATABASE:
+        return "模型不存在", 404
+    
+    model_data = MODEL_DATABASE[model_id]
+    return render_template('model_info.html', model_data=model_data)
 
 # 注册路由
 @app.route('/register', methods=['POST'])
@@ -109,6 +1193,10 @@ class ProgressCallback(Callback):  # 定义一个回调用于在训练过程中�
         self.best_reward = float('-inf')  # 记录历史最优奖励（越大越好）
         self.epoch_losses = []  # 存放当前epoch内每个batch的loss
         self.epoch_rewards = []  # 存放当前epoch内每个batch的reward
+        # 新增：用于存储所有epoch的历史数据，用于绘制折线图
+        self.history_losses = []  # 所有epoch的平均loss历史
+        self.history_rewards = []  # 所有epoch的平均reward历史
+        self.history_epochs = []  # epoch编号列表
     
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):  # 每个batch结束时被调用
         """每个 batch 结束时收集指标"""  # 说明本函数用途：收集batch级指标
@@ -202,13 +1290,66 @@ class ProgressCallback(Callback):  # 定义一个回调用于在训练过程中�
         self.best_reward = max(self.best_reward, reward)  # 更新历史最优reward
         progress = (epoch / self.total_epochs) * 100  # 计算训练进度百分比
         
+        # 新增：记录历史数据用于绘制折线图
+        self.history_epochs.append(epoch)
+        self.history_losses.append(loss)
+        self.history_rewards.append(reward)
+        
+        # 新增：生成实时训练曲线图
+        try:
+            plot_filename = f"training_curves_{self.session_id[:8]}.png"
+            plot_path = os.path.join(PLOTS_DIR, plot_filename)
+            
+            # 创建包含loss和reward的双子图
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+            
+            # 绘制Loss曲线
+            ax1.plot(self.history_epochs, self.history_losses, 'b-o', linewidth=2, markersize=6, label='Loss')
+            ax1.set_xlabel('Epoch', fontsize=12)
+            ax1.set_ylabel('Loss', fontsize=12)
+            ax1.set_title('训练Loss变化曲线', fontsize=14, fontweight='bold')
+            ax1.grid(True, alpha=0.3, linestyle='--')
+            ax1.legend(loc='upper right', fontsize=10)
+            
+            # 绘制Reward曲线
+            ax2.plot(self.history_epochs, self.history_rewards, 'g-o', linewidth=2, markersize=6, label='Reward')
+            ax2.set_xlabel('Epoch', fontsize=12)
+            ax2.set_ylabel('Reward', fontsize=12)
+            ax2.set_title('训练Reward变化曲线', fontsize=14, fontweight='bold')
+            ax2.grid(True, alpha=0.3, linestyle='--')
+            ax2.legend(loc='lower right', fontsize=10)
+            
+            # 在reward图上标注最佳reward
+            best_epoch_idx = self.history_rewards.index(max(self.history_rewards))
+            best_epoch_num = self.history_epochs[best_epoch_idx]
+            ax2.axhline(y=self.best_reward, color='r', linestyle='--', alpha=0.5, label=f'Best: {self.best_reward:.4f}')
+            ax2.scatter([best_epoch_num], [self.best_reward], color='red', s=100, zorder=5, marker='*')
+            ax2.legend(loc='lower right', fontsize=10)
+            
+            plt.tight_layout()
+            plt.savefig(plot_path, dpi=150, bbox_inches="tight")
+            plt.close(fig)
+            
+            # 通过队列发送图表路径
+            self.queue.put(json.dumps({
+                'type': 'plot',
+                'plot_url': f"/static/model_plots/{plot_filename}",
+                'message': f'Epoch {epoch} 训练曲线已更新'
+            }))
+        except Exception as e:
+            self.queue.put(json.dumps({
+                'type': 'warning',
+                'message': f'生成训练曲线失败: {str(e)}'
+            }))
+        
         # 更新训练状态  # 将最新指标写入全局状态，供查询接口使用
         training_status[self.session_id].update({
             'progress': progress,  # 当前进度百分比
             'epoch': epoch,  # 当前epoch编号
             'loss': round(loss, 4),  # 本epoch平均loss（四舍五入）
             'reward': round(reward, 4),  # 本epoch平均reward（四舍五入）
-            'best_reward': round(self.best_reward, 4)  # 历史最优reward（四舍五入）
+            'best_reward': round(self.best_reward, 4),  # 历史最优reward（四舍五入）
+            'plot_url': f"/static/model_plots/training_curves_{self.session_id[:8]}.png"  # 新增：训练曲线图路径
         })
         
         # 发送进度更新  # 以SSE消息形式推送进度到前端
@@ -367,7 +1508,10 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
         
         # 生成对比图  # 可视化随机与训练后路径及代价
         plot_paths = []  # 存储生成图片的相对路径
+        animation_paths = []  # 存储动态GIF的路径
+        
         for i, td in enumerate(td_init):  # 遍历每个测试实例
+            # 生成静态对比图
             fig, axs = plt.subplots(1, 2, figsize=(12, 5))  # 创建左右两个子图
             env.render(td, actions_untrained[i], ax=axs[0])  # 左图渲染随机策略路径
             env.render(td, actions_trained[i], ax=axs[1])  # 右图渲染训练后策略路径
@@ -379,6 +1523,25 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
             plt.savefig(plot_path, dpi=150, bbox_inches="tight")  # 保存图片到磁盘
             plt.close()  # 关闭图像以释放内存
             plot_paths.append(f"/static/model_plots/{plot_filename}")  # 记录供前端展示的路径
+            
+            # 生成动态路线构建过程GIF
+            queue.put(json.dumps({
+                'type': 'info',
+                'message': f'正在生成动态路线图 {i+1}/3...'
+            }))
+            
+            animation_filename = f"animation_{session_id[:8]}_{i+1}.gif"
+            animation_path = os.path.join(PLOTS_DIR, animation_filename)
+            
+            # 生成训练后路线的逐步构建动画
+            create_route_animation(
+                td, 
+                actions_trained[i].cpu().numpy(), 
+                animation_path,
+                title="训练后路线生成过程"
+            )
+            
+            animation_paths.append(f"/static/model_plots/{animation_filename}")
         
         # 保存检查点  # 将最终模型权重保存到文件
         trainer.save_checkpoint(checkpoint_path)  # 保存ckpt
@@ -399,6 +1562,8 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
             'final_reward': training_status[session_id]['reward'],  # 最终reward
             'best_reward': training_status[session_id]['best_reward'],  # 历史最优reward
             'plot_paths': plot_paths,  # 可视化图片路径
+            'animation_paths': animation_paths,  # 动态GIF路径
+            'training_curve': training_status[session_id].get('plot_url', ''),  # 训练曲线图路径
             'checkpoint_path': checkpoint_path  # 模型ckpt路径
         }
         
@@ -584,6 +1749,217 @@ def get_training_status(session_id):
             'success': False,
             'message': '未找到训练会话'
         }), 404
+
+
+@app.route('/api/list_files', methods=['GET'])
+def list_training_files():
+    """列出所有训练产生的文件"""
+    try:
+        files_info = {
+            'plots': [],
+            'checkpoints': [],
+            'total_size': 0
+        }
+        
+        # 列出可视化图片文件
+        if os.path.exists(PLOTS_DIR):
+            for filename in os.listdir(PLOTS_DIR):
+                file_path = os.path.join(PLOTS_DIR, filename)
+                if os.path.isfile(file_path):
+                    file_size = os.path.getsize(file_path)
+                    file_type = 'unknown'
+                    
+                    if filename.startswith('comparison_'):
+                        file_type = 'comparison'
+                    elif filename.startswith('animation_'):
+                        file_type = 'animation'
+                    elif filename.startswith('training_curves_'):
+                        file_type = 'training_curve'
+                    
+                    files_info['plots'].append({
+                        'name': filename,
+                        'type': file_type,
+                        'size': file_size,
+                        'size_mb': round(file_size / (1024 * 1024), 2),
+                        'path': f'/static/model_plots/{filename}',
+                        'modified': os.path.getmtime(file_path)
+                    })
+                    files_info['total_size'] += file_size
+        
+        # 列出检查点文件
+        if os.path.exists(CHECKPOINTS_DIR):
+            for filename in os.listdir(CHECKPOINTS_DIR):
+                file_path = os.path.join(CHECKPOINTS_DIR, filename)
+                if os.path.isfile(file_path) and filename.endswith('.ckpt'):
+                    file_size = os.path.getsize(file_path)
+                    files_info['checkpoints'].append({
+                        'name': filename,
+                        'type': 'checkpoint',
+                        'size': file_size,
+                        'size_mb': round(file_size / (1024 * 1024), 2),
+                        'path': file_path,
+                        'modified': os.path.getmtime(file_path)
+                    })
+                    files_info['total_size'] += file_size
+        
+        # 按修改时间降序排序
+        files_info['plots'].sort(key=lambda x: x['modified'], reverse=True)
+        files_info['checkpoints'].sort(key=lambda x: x['modified'], reverse=True)
+        
+        files_info['total_size_mb'] = round(files_info['total_size'] / (1024 * 1024), 2)
+        files_info['total_count'] = len(files_info['plots']) + len(files_info['checkpoints'])
+        
+        return jsonify({
+            'success': True,
+            'files': files_info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取文件列表失败: {str(e)}'
+        }), 500
+
+
+@app.route('/api/delete_file', methods=['POST'])
+def delete_training_file():
+    """删除指定的训练文件"""
+    try:
+        data = request.json
+        filename = data.get('filename')
+        file_type = data.get('file_type', 'plot')
+        
+        if not filename:
+            return jsonify({
+                'success': False,
+                'message': '未提供文件名'
+            }), 400
+        
+        # 确定文件路径
+        if file_type == 'checkpoint':
+            file_path = os.path.join(CHECKPOINTS_DIR, filename)
+        else:
+            file_path = os.path.join(PLOTS_DIR, filename)
+        
+        # 安全检查：确保文件在允许的目录内
+        abs_file_path = os.path.abspath(file_path)
+        abs_plots_dir = os.path.abspath(PLOTS_DIR)
+        abs_checkpoints_dir = os.path.abspath(CHECKPOINTS_DIR)
+        
+        if not (abs_file_path.startswith(abs_plots_dir) or abs_file_path.startswith(abs_checkpoints_dir)):
+            return jsonify({
+                'success': False,
+                'message': '无效的文件路径'
+            }), 403
+        
+        # 删除文件
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return jsonify({
+                'success': True,
+                'message': f'文件 {filename} 已删除'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '文件不存在'
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'删除文件失败: {str(e)}'
+        }), 500
+
+
+@app.route('/api/delete_by_session', methods=['POST'])
+def delete_by_session():
+    """根据session_id删除相关的所有文件"""
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        
+        if not session_id:
+            return jsonify({
+                'success': False,
+                'message': '未提供session_id'
+            }), 400
+        
+        # 取前8位作为文件名前缀
+        session_prefix = session_id[:8]
+        deleted_files = []
+        
+        # 删除可视化文件
+        if os.path.exists(PLOTS_DIR):
+            for filename in os.listdir(PLOTS_DIR):
+                if session_prefix in filename:
+                    file_path = os.path.join(PLOTS_DIR, filename)
+                    try:
+                        os.remove(file_path)
+                        deleted_files.append(filename)
+                    except Exception as e:
+                        print(f"删除文件 {filename} 失败: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'已删除 {len(deleted_files)} 个文件',
+            'deleted_files': deleted_files
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'批量删除失败: {str(e)}'
+        }), 500
+
+
+@app.route('/api/clear_all_files', methods=['POST'])
+def clear_all_files():
+    """清空所有训练文件（谨慎使用）"""
+    try:
+        data = request.json
+        confirm = data.get('confirm', False)
+        
+        if not confirm:
+            return jsonify({
+                'success': False,
+                'message': '需要确认操作'
+            }), 400
+        
+        deleted_count = 0
+        
+        # 清空可视化文件
+        if os.path.exists(PLOTS_DIR):
+            for filename in os.listdir(PLOTS_DIR):
+                file_path = os.path.join(PLOTS_DIR, filename)
+                if os.path.isfile(file_path):
+                    try:
+                        os.remove(file_path)
+                        deleted_count += 1
+                    except Exception as e:
+                        print(f"删除文件 {filename} 失败: {str(e)}")
+        
+        # 清空检查点文件
+        if os.path.exists(CHECKPOINTS_DIR):
+            for filename in os.listdir(CHECKPOINTS_DIR):
+                if filename.endswith('.ckpt'):
+                    file_path = os.path.join(CHECKPOINTS_DIR, filename)
+                    try:
+                        os.remove(file_path)
+                        deleted_count += 1
+                    except Exception as e:
+                        print(f"删除文件 {filename} 失败: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'已清空所有文件，共删除 {deleted_count} 个文件'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'清空文件失败: {str(e)}'
+        }), 500
 
 
 if __name__ == '__main__':
