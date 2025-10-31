@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ model_data.name }} - 模型详情 | RL4CO 平台 | 山西大学</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 统一导航样式 -->
+    <link rel="stylesheet" href="/static/css/navigation.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        /* 统一的顶部导航栏 */
+        .page-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .page-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .university-badge {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #667eea;
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: #333;
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            padding: 0.5rem 0;
+            position: relative;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover::after, .nav-links a.active::after {
+            width: 100%;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: #667eea;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 100px auto 50px;
+            padding: 0 2rem;
+        }
+
+        .model-header {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            border-radius: 20px;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border: 2px solid rgba(102, 126, 234, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .model-header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .model-title {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: inline-block;
+        }
+
+        .model-subtitle {
+            font-size: 1.4rem;
+            color: #555;
+            margin-bottom: 1.5rem;
+            font-weight: 300;
+        }
+
+        .badge-container {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 1.5rem 0;
+        }
+
+        .category-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.6rem 1.5rem;
+            border-radius: 50px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s;
+        }
+
+        .category-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .paper-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-top: 1.5rem;
+            border: 2px solid #667eea;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .paper-link:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            border-color: transparent;
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+        }
+
+        .content-section:hover {
+            box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
+        }
+
+        .section-title {
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 1.8rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid transparent;
+            background: linear-gradient(to right, #667eea 0%, #764ba2 100%) left bottom no-repeat;
+            background-size: 100% 3px;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+        }
+
+        .section-content {
+            line-height: 1.8;
+            color: #444;
+            font-size: 1.05rem;
+        }
+
+        .section-content h4 {
+            color: #667eea;
+            margin-top: 1.5rem;
+            margin-bottom: 0.8rem;
+            font-size: 1.2rem;
+        }
+
+        .section-content p {
+            margin-bottom: 1rem;
+        }
+
+        .section-content ul, .section-content ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-content li {
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+        }
+
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .pros, .cons {
+            padding: 1.5rem;
+            border-radius: 10px;
+        }
+
+        .pros {
+            background: rgba(76, 175, 80, 0.1);
+            border-left: 4px solid #4CAF50;
+        }
+
+        .cons {
+            background: rgba(244, 67, 54, 0.1);
+            border-left: 4px solid #f44336;
+        }
+
+        .pros h4 {
+            color: #4CAF50;
+        }
+
+        .cons h4 {
+            color: #f44336;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .back-button, .list-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 1.05rem;
+        }
+
+        .back-button {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .back-button:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .list-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: 2px solid transparent;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .list-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .info-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-card h5 {
+            color: #667eea;
+            margin-bottom: 0.8rem;
+            font-size: 1.1rem;
+        }
+
+        .info-card p {
+            color: #666;
+            margin: 0;
+        }
+
+        code {
+            background: #f5f5f5;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #e83e8c;
+        }
+
+        @media (max-width: 768px) {
+            .pros-cons {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 统一的顶部导航栏 -->
+    <header class="page-header">
+        <nav class="page-nav">
+            <div class="logo-section">
+                <div class="university-badge">🎓 山西大学 · RL4CO</div>
+            </div>
+            <div class="nav-links">
+                <a href="/">🏠 训练首页</a>
+                <a href="/benchmark">📊 算法对比</a>
+                <a href="/model_info" class="active">📚 模型知识库</a>
+                <a href="/file_manager">🗂️ 文件管理</a>
+                <a href="/profile">👤 我的账户</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- 模型标题区域 -->
+        <div class="model-header">
+            <div class="model-header-content">
+                <h1 class="model-title">{{ model_data.name }}</h1>
+                <p class="model-subtitle">{{ model_data.full_name }}</p>
+                
+                <div class="badge-container">
+                    <span class="category-badge">
+                        <span>🏷️</span>
+                        <span>{{ model_data.category }}</span>
+                    </span>
+                    {% if model_data.year %}
+                    <span class="category-badge">
+                        <span>📅</span>
+                        <span>{{ model_data.year }}</span>
+                    </span>
+                    {% endif %}
+                </div>
+                
+                {% if model_data.paper_url %}
+                <a href="{{ model_data.paper_url }}" target="_blank" class="paper-link">
+                    <span>📄</span>
+                    <span>查看论文 ({{ model_data.paper_venue }})</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 核心定位 -->
+        <div class="content-section">
+            <h2 class="section-title">🎯 核心定位</h2>
+            <div class="section-content">
+                {{ model_data.core_concept | safe }}
+            </div>
+        </div>
+
+        <!-- 技术架构 -->
+        <div class="content-section">
+            <h2 class="section-title">🏗️ 技术架构与创新</h2>
+            <div class="section-content">
+                {{ model_data.architecture | safe }}
+            </div>
+        </div>
+
+        <!-- 关键创新 -->
+        {% if model_data.innovations %}
+        <div class="content-section">
+            <h2 class="section-title">💡 关键创新点</h2>
+            <div class="section-content">
+                {{ model_data.innovations | safe }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 性能表现 -->
+        <div class="content-section">
+            <h2 class="section-title">📊 性能表现</h2>
+            <div class="section-content">
+                {{ model_data.performance | safe }}
+            </div>
+        </div>
+
+        <!-- 优势与局限 -->
+        <div class="content-section">
+            <h2 class="section-title">⚖️ 优势与局限</h2>
+            <div class="pros-cons">
+                <div class="pros">
+                    <h4>✅ 优势</h4>
+                    {{ model_data.advantages | safe }}
+                </div>
+                <div class="cons">
+                    <h4>⚠️ 局限性</h4>
+                    {{ model_data.limitations | safe }}
+                </div>
+            </div>
+        </div>
+
+        <!-- 应用场景 -->
+        {% if model_data.applications %}
+        <div class="content-section">
+            <h2 class="section-title">🎯 适用场景</h2>
+            <div class="section-content">
+                {{ model_data.applications | safe }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 返回按钮 -->
+        <div class="action-buttons">
+            <a href="/model_info" class="list-button">
+                <span>📚</span>
+                <span>返回模型列表</span>
+            </a>
+            <a href="/" class="back-button">
+                <span>🏠</span>
+                <span>返回训练首页</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- 统一导航逻辑 -->
+    <script src="/static/js/navigation.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,16 @@
+<!-- 统一的顶部导航栏 -->
+<header class="page-header">
+    <nav class="page-nav">
+        <div class="logo-section">
+            <div class="university-badge">🎓 山西大学 · RL4CO</div>
+        </div>
+        <div class="nav-links">
+            <a href="/" {% if active_page == 'home' %}class="active"{% endif %}>🏠 训练首页</a>
+            <a href="/benchmark" {% if active_page == 'benchmark' %}class="active"{% endif %}>📊 算法对比</a>
+            <a href="/model_info" {% if active_page == 'model_info' %}class="active"{% endif %}>📚 模型知识库</a>
+            <a href="/file_manager" {% if active_page == 'file_manager' %}class="active"{% endif %}>🗂️ 文件管理</a>
+            <a href="/profile" {% if active_page == 'profile' %}class="active"{% endif %}>👤 我的账户</a>
+        </div>
+    </nav>
+</header>
+

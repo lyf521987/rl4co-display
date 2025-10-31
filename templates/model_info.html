@@ -2,8 +2,10 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>{{ model_data.name }} - 模型详情 | RL4CO</title>
+    <title>{{ model_data.name }} - 模型详情 | RL4CO 平台 | 山西大学</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 统一导航样式 -->
+    <link rel="stylesheet" href="/static/css/navigation.css">
     
     <style>
         * {
@@ -17,85 +19,151 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #333;
             min-height: 100vh;
-            padding: 2rem;
         }
 
         .container {
             max-width: 1200px;
-            margin: 0 auto;
+            margin: 100px auto 50px;
+            padding: 0 2rem;
         }
 
-        .header {
-            background: white;
+        .model-header {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
             border-radius: 20px;
-            padding: 2.5rem;
+            padding: 3rem;
             margin-bottom: 2rem;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border: 2px solid rgba(102, 126, 234, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .model-header-content {
+            position: relative;
+            z-index: 1;
         }
 
         .model-title {
-            font-size: 2.5rem;
-            color: #667eea;
+            font-size: 3rem;
+            font-weight: 800;
             margin-bottom: 1rem;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            display: inline-block;
         }
 
         .model-subtitle {
-            font-size: 1.3rem;
-            color: #666;
+            font-size: 1.4rem;
+            color: #555;
             margin-bottom: 1.5rem;
+            font-weight: 300;
+        }
+
+        .badge-container {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 1.5rem 0;
         }
 
         .category-badge {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 0.5rem 1.5rem;
+            padding: 0.6rem 1.5rem;
             border-radius: 50px;
             font-size: 0.95rem;
             font-weight: 600;
-            margin-right: 0.5rem;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s;
+        }
+
+        .category-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
         }
 
         .paper-link {
-            display: inline-block;
-            background: #f5f5f5;
-            padding: 0.8rem 1.5rem;
-            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
             text-decoration: none;
             color: #667eea;
             font-weight: 600;
             transition: all 0.3s;
-            margin-top: 1rem;
+            margin-top: 1.5rem;
+            border: 2px solid #667eea;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
         }
 
         .paper-link:hover {
-            background: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            border-color: transparent;
         }
 
         .content-section {
             background: white;
-            border-radius: 15px;
-            padding: 2rem;
+            border-radius: 20px;
+            padding: 2.5rem;
             margin-bottom: 2rem;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+        }
+
+        .content-section:hover {
+            box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
         }
 
         .section-title {
-            font-size: 1.8rem;
-            color: #667eea;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.8rem;
-            border-bottom: 3px solid #667eea;
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 1.8rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid transparent;
+            background: linear-gradient(to right, #667eea 0%, #764ba2 100%) left bottom no-repeat;
+            background-size: 100% 3px;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.8rem;
+        }
+
+        .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
         }
 
         .section-content {
@@ -162,23 +230,50 @@
             color: #f44336;
         }
 
-        .back-button {
-            display: inline-block;
-            background: white;
-            color: #667eea;
-            padding: 1rem 2rem;
-            border-radius: 10px;
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .back-button, .list-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2.5rem;
+            border-radius: 12px;
             text-decoration: none;
             font-weight: 600;
             transition: all 0.3s;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            font-size: 1.05rem;
+        }
+
+        .back-button {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
         }
 
         .back-button:hover {
             background: #667eea;
             color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .list-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: 2px solid transparent;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .list-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
         }
 
         .info-grid {
@@ -226,24 +321,49 @@
     </style>
 </head>
 <body>
+    <!-- 统一导航栏 -->
+    <header class="header">
+        <nav class="nav">
+            <div class="logo-section">
+                <div class="university-badge">🎓 山西大学 · RL4CO</div>
+            </div>
+            <div class="nav-links">
+                <a href="/" {% if active_page == 'home' %}class="active"{% endif %}>🏠 训练首页</a>
+                <a href="/benchmark" {% if active_page == 'benchmark' %}class="active"{% endif %}>📊 算法对比</a>
+                <a href="/model_info" {% if active_page == 'model_info' %}class="active"{% endif %}>📚 模型知识库</a>
+                <a href="/file_manager" {% if active_page == 'file_manager' %}class="active"{% endif %}>🗂️ 文件管理</a>
+                <a href="/profile" {% if active_page == 'profile' %}class="active"{% endif %}>👤 我的账户</a>
+            </div>
+        </nav>
+    </header>
+
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1 class="model-title">{{ model_data.name }}</h1>
-            <p class="model-subtitle">{{ model_data.full_name }}</p>
-            
-            <div style="margin-top: 1rem;">
-                <span class="category-badge">{{ model_data.category }}</span>
-                {% if model_data.year %}
-                <span class="category-badge">{{ model_data.year }}</span>
+        <!-- 模型标题区域 -->
+        <div class="model-header">
+            <div class="model-header-content">
+                <h1 class="model-title">{{ model_data.name }}</h1>
+                <p class="model-subtitle">{{ model_data.full_name }}</p>
+                
+                <div class="badge-container">
+                    <span class="category-badge">
+                        <span>🏷️</span>
+                        <span>{{ model_data.category }}</span>
+                    </span>
+                    {% if model_data.year %}
+                    <span class="category-badge">
+                        <span>📅</span>
+                        <span>{{ model_data.year }}</span>
+                    </span>
+                    {% endif %}
+                </div>
+                
+                {% if model_data.paper_url %}
+                <a href="{{ model_data.paper_url }}" target="_blank" class="paper-link">
+                    <span>📄</span>
+                    <span>查看论文 ({{ model_data.paper_venue }})</span>
+                </a>
                 {% endif %}
             </div>
-            
-            {% if model_data.paper_url %}
-            <a href="{{ model_data.paper_url }}" target="_blank" class="paper-link">
-                📄 查看论文 ({{ model_data.paper_venue }})
-            </a>
-            {% endif %}
         </div>
 
         <!-- 核心定位 -->
@@ -306,10 +426,20 @@
         {% endif %}
 
         <!-- 返回按钮 -->
-        <div style="text-align: center; margin-top: 2rem;">
-            <a href="/home" class="back-button">← 返回首页</a>
+        <div class="action-buttons">
+            <a href="/model_info" class="list-button">
+                <span>📚</span>
+                <span>返回模型列表</span>
+            </a>
+            <a href="/" class="back-button">
+                <span>🏠</span>
+                <span>返回训练首页</span>
+            </a>
         </div>
     </div>
+
+    <!-- 统一导航逻辑 -->
+    <script src="/static/js/navigation.js"></script>
 </body>
 </html>
 

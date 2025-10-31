@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>RL4CO - 强化学习优化平台 | 山西大学</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 统一导航样式 -->
+<link rel="stylesheet" href="/static/css/navigation.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .university-badge {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #667eea;
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: #333;
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #667eea;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 100px auto 50px;
+            padding: 0 2rem;
+        }
+
+        .hero-section {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .hero-section h1 {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-section .subtitle {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .hero-section .university-info {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.5rem 2rem;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        .config-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .config-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .config-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .config-card h3 {
+            color: #667eea;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .icon {
+            font-size: 1.8rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            background: white;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group select {
+            cursor: pointer;
+        }
+
+        .description {
+            color: #666;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .training-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .training-panel h3 {
+            color: #667eea;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .start-button {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 1rem;
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .start-button:active {
+            transform: translateY(0);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .feature-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.05);
+        }
+
+        .feature-item h4 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-item p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        footer {
+            background: white;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 15px;
+            margin-top: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        footer p {
+            color: #666;
+        }
+
+        .status-message {
+            display: none;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* 训练进度显示 */
+        .progress-container {
+            display: none;
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            color: #667eea;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .training-log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-entry {
+            padding: 0.3rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .results-panel {
+            display: none;
+            margin-top: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+        }
+
+        .results-panel.show {
+            display: block;
+        }
+
+        .results-panel h3 {
+            margin-bottom: 1rem;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .result-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .result-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 968px) {
+            .config-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav">
+            <div class="logo-section">
+                <div class="university-badge">🎓 山西大学 · RL4CO</div>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="active">🏠 训练首页</a>
+                <a href="/benchmark">📊 算法对比</a>
+                <a href="/model_info">📚 模型知识库</a>
+                <a href="/file_manager">🗂️ 文件管理</a>
+                <a href="/profile">👤 我的账户</a>
+            </div>
+            
+            <!-- 用户信息和退出按钮 -->
+            <div class="user-section" style="display: flex; align-items: center; gap: 1rem;">
+                <span class="user-name" style="color: #667eea; font-weight: 600;">
+                    👤 {{ username if username else '访客' }}
+                </span>
+                <button onclick="logout()" class="logout-btn" style="
+                    background: #f56565;
+                    color: white;
+                    border: none;
+                    padding: 0.5rem 1.5rem;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    transition: all 0.3s;
+                " onmouseover="this.style.background='#e53e3e'" onmouseout="this.style.background='#f56565'">
+                    退出登录
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <div class="main-container">
+        <section class="hero-section" id="home">
+            <h1>🚀 RL4CO 强化学习优化平台</h1>
+            <p class="subtitle">基于深度强化学习的组合优化问题求解平台</p>
+            <p class="subtitle">Reinforcement Learning for Combinatorial Optimization</p>
+            <div class="university-info">山西大学 计算机科学与技术学院</div>
+        </section>
+
+        <div class="features-grid" id="features">
+            <div class="feature-item">
+                <h4>🎯 多样化模型</h4>
+                <p>支持 Attention Model、POMO、SymNCO 等先进模型</p>
+            </div>
+            <div class="feature-item">
+                <h4>⚡ 高效训练</h4>
+                <p>基于 PyTorch Lightning 的分布式训练框架</p>
+            </div>
+            <div class="feature-item">
+                <h4>🔬 学术研究</h4>
+                <p>适用于 TSP、VRP 等经典组合优化问题</p>
+            </div>
+        </div>
+
+        <section class="config-section" id="config">
+            <div class="config-card">
+                <h3><span class="icon">🤖</span> 模型选择</h3>
+                <form id="rl-config-form">
+                    <div class="form-group">
+                        <label for="model-select">选择强化学习模型</label>
+                        <select id="model-select" name="model">
+                            <option value="attention">Attention Model (AM)</option>
+                            <option value="pomo">POMO (Policy Optimization with Multiple Optima)</option>
+                            <option value="symncco">SymNCO (Symmetric Neural Combinatorial Optimization)</option>
+                            <option value="matnet">MatNet (Matrix Network)</option>
+                            <option value="mdam">MDAM (Multi-Decoder Attention Model)</option>
+                            <option value="deepaco">DeepACO (Deep Ant Colony Optimization)</option>
+                        </select>
+                        <p class="description">选择用于求解组合优化问题的深度强化学习模型</p>
+                    </div>
+                </form>
+            </div>
+            <div class="config-card">
+                <h3><span class="icon">⁉️</span> 问题类型选择</h3>
+                <form id="rl-config-form">
+                    <div class="form-group">
+                        <label for="problem-select">选择问题类型</label>
+                        <select id="problem-select" name="problem">
+                            <option value="tsp">TSP (Traveling Salesman Problem)</option>
+                            <option value="cvrp">CVRP (Capacitated Vehicle Routing Problem)（敬请期待）</option>
+                            <option value="sdvrp">SDVRP (Split Delivery VRP)（敬请期待）</option>
+                            <option value="pctsp">PCTSP (Prize Collecting TSP)（敬请期待）</option>
+                            <option value="op">OP (Orienteering Problem)（敬请期待）</option>
+                            <option value="mdpp">MDPP (Multiple Depot Pickup Problem)（敬请期待）</option>
+                        </select>
+                        <p class="description">选择要解决的组合优化问题类型</p>
+                  </div>
+                  </form>
+              </div>
+
+            <div class="config-card">
+                <h3><span class="icon">📚</span> 模型知识库</h3>
+                <p class="description">探索 20+ 种强化学习组合优化模型</p>
+                <div style="text-align: center; padding: 2rem 0;">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📖</div>
+                    <p style="color: #666; margin-bottom: 1.5rem;">
+                        查看所有可用模型的详细信息、<br>
+                        论文出处和性能数据
+                    </p>
+                </div>
+                <button type="button" class="start-button" onclick="window.location.href='/model_info'" style="margin-top: 0.5rem;">
+                    <span class="icon">🔍</span> 浏览模型知识库
+                </button>
+            </div>
+        </section>
+
+            <div class="config-card">
+                <h3><span class="icon">⚙️</span> 策略配置</h3>
+                <div class="form-group">
+                    <label for="strategy-select">训练策略</label>
+                    <select id="strategy-select" name="strategy">
+                        <option value="reinforce">REINFORCE</option>
+                        <option value="a2c">A2C (Advantage Actor-Critic)（敬请期待）</option>
+                        <option value="ppo">PPO (Proximal Policy Optimization)（敬请期待）</option>
+                        <option value="actor-critic">Actor-Critic（敬请期待）</option>
+                        <option value="dqn">DQN (Deep Q-Network)（敬请期待）</option>
+                    </select>
+                    <p class="description">选择强化学习训练策略和算法</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="decoder-select">解码策略</label>
+                    <select id="decoder-select" name="decoder">
+                        <option value="greedy">Greedy Decoding</option>
+                        <option value="sampling">Sampling（敬请期待）</option>
+                        <option value="beam-search">Beam Search（敬请期待）</option>
+                        <option value="augmentation">Data Augmentation（敬请期待）</option>
+                    </select>
+                    <p class="description">选择解码和推理策略</p>
+            </div>
+
+                <div class="form-group">
+                    <label for="epochs">训练轮数 (Epochs)</label>
+                    <input type="number" id="epochs" name="epochs" value="100" min="1" max="10000" step="1">
+                    <p class="description">设置模型训练的迭代次数</p>
+            </div>
+        </div>
+    </section>
+
+        <!-- 增加间距 -->
+        <section class="training-panel" id="about" style="margin-top: 4rem;">
+            <h3>🎓 关于项目</h3>
+            <p style="color: #666; line-height: 1.8; margin-bottom: 1.5rem; text-align: center;">
+                本平台基于 <strong>RL4CO</strong> 开源库开发，旨在为组合优化问题提供先进的深度强化学习求解方案。
+                <br>该项目由<strong>山西大学</strong>团队维护，用于学术研究和教学实践。
+            </p>
+            
+            <div class="form-group">
+                <label for="batch-size">批次大小 (Batch Size)</label>
+                <input type="number" id="batch-size" name="batch_size" value="512" min="1" max="2048" step="1">
+            </div>
+
+            <div class="form-group">
+                <label for="learning-rate">学习率 (Learning Rate)</label>
+                <input type="number" id="learning-rate" name="learning_rate" value="0.0001" min="0.00001" max="0.1" step="0.00001">
+            </div>
+
+            <button type="submit" class="start-button" id="start-button" onclick="startTraining()">
+                🚀 开始训练
+            </button>
+
+            <div id="status-message" class="status-message"></div>
+
+            <!-- 训练进度显示 -->
+            <div id="progress-container" class="progress-container">
+                <h4 style="color: #667eea; margin-bottom: 1rem;">⏳ 训练进度</h4>
+                <div class="progress-bar-container">
+                    <div id="progress-bar" class="progress-bar">0%</div>
+                </div>
+                
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">当前轮次</div>
+                        <div class="metric-value" id="metric-epoch">0/0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Loss</div>
+                        <div class="metric-value" id="metric-loss">0.0000</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Reward</div>
+                        <div class="metric-value" id="metric-reward">0.0000</div>
+                    </div>
+                </div>
+
+                <div class="training-log" id="training-log">
+                    <div style="color: #999; text-align: center;">等待训练日志...</div>
+                </div>
+            </div>
+
+            <!-- 训练曲线显示 -->
+            <div id="training-curves-container" class="progress-container" style="display: none;">
+                <h4 style="color: #667eea; margin-bottom: 1rem;">📈 训练曲线（实时更新）</h4>
+                <div style="background: white; padding: 1rem; border-radius: 8px; text-align: center;">
+                    <img id="training-curve-img" 
+                         src="" 
+                         alt="训练曲线" 
+                         style="width: 100%; max-width: 900px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <p id="curve-update-info" style="margin-top: 0.5rem; color: #27ae60; font-weight: bold;"></p>
+                </div>
+            </div>
+
+            <!-- 训练结果显示 -->
+            <div id="results-panel" class="results-panel">
+                <h3>🎉 训练完成！</h3>
+                <div class="results-grid" id="results-content">
+                    <!-- 结果将通过 JavaScript 动态填充 -->
+            </div>
+        </div>
+    </section>
+
+    <footer>
+            <p><strong>山西大学 计算机科学与技术学院</strong></p>
+            <p>RL4CO - Reinforcement Learning for Combinatorial Optimization Platform</p>
+            <p style="margin-top: 1rem; color: #999;">© 2025 Shanxi University. All Rights Reserved.</p>
+    </footer>
+    </div>
+
+    <script>
+        // 平滑滚动效果
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // 全局变量
+        let eventSource = null;
+
+        // 开始训练功能
+        async function startTraining() {
+            const model = document.getElementById('model-select').value;
+            const problem = document.getElementById('problem-select').value;
+            const strategy = document.getElementById('strategy-select').value;
+            const decoder = document.getElementById('decoder-select').value;
+            const epochs = document.getElementById('epochs').value;
+            const batchSize = document.getElementById('batch-size').value;
+            const learningRate = document.getElementById('learning-rate').value;
+
+            const statusMsg = document.getElementById('status-message');
+            const startButton = document.getElementById('start-button');
+            const progressContainer = document.getElementById('progress-container');
+            const resultsPanel = document.getElementById('results-panel');
+
+            // 禁用开始按钮
+            startButton.disabled = true;
+            startButton.style.opacity = '0.6';
+            startButton.textContent = '⏳ 训练中...';
+
+            // 隐藏之前的结果
+            resultsPanel.className = 'results-panel';
+
+            // 准备训练配置
+            const config = {
+                model: model,
+                problem: problem,
+                strategy: strategy,
+                decoder: decoder,
+                epochs: parseInt(epochs),
+                batch_size: parseInt(batchSize),
+                learning_rate: parseFloat(learningRate)
+            };
+
+            try {
+                // 发送训练请求到后端
+                const response = await fetch('/api/start_training', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 显示成功消息
+                    statusMsg.className = 'status-message show success';
+                    statusMsg.innerHTML = `✅ 训练已启动！会话 ID: ${result.session_id.substring(0, 8)}...`;
+
+                    // 显示进度容器
+                    progressContainer.className = 'progress-container show';
+
+                    // 开始监听训练进度
+                    listenToTrainingProgress(result.session_id);
+
+                } else {
+                    throw new Error(result.message || '启动训练失败');
+                }
+
+            } catch (error) {
+                statusMsg.className = 'status-message show error';
+                statusMsg.innerHTML = `❌ 错误: ${error.message}`;
+                
+                // 重新启用按钮
+                startButton.disabled = false;
+                startButton.style.opacity = '1';
+                startButton.textContent = '🚀 开始训练';
+            }
+        }
+
+        // 监听训练进度（使用 Server-Sent Events）
+        function listenToTrainingProgress(sessionId) {
+            // 关闭之前的连接
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // 创建新的 SSE 连接
+            eventSource = new EventSource(`/api/training_progress/${sessionId}`);
+
+            // 清空日志
+            const trainingLog = document.getElementById('training-log');
+            trainingLog.innerHTML = '';
+
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                switch(data.type) {
+                    case 'progress':
+                        updateProgress(data);
+                        break;
+                    case 'info':
+                        addLogEntry(data.message);
+                        break;
+                    case 'plot':
+                        updateTrainingCurve(data.plot_url, data.message);
+                        addLogEntry('📊 ' + data.message);
+                        break;
+                    case 'complete':
+                        handleTrainingComplete(data);
+                        break;
+                    case 'error':
+                        handleTrainingError(data);
+                        break;
+                    case 'heartbeat':
+                        // 心跳消息，不做处理
+                        break;
+                }
+            };
+
+            eventSource.onerror = function(error) {
+                console.error('SSE Error:', error);
+                eventSource.close();
+            };
+        }
+
+        // 更新进度显示
+        function updateProgress(data) {
+            const progressBar = document.getElementById('progress-bar');
+            const metricEpoch = document.getElementById('metric-epoch');
+            const metricLoss = document.getElementById('metric-loss');
+            const metricReward = document.getElementById('metric-reward');
+
+            // 更新进度条
+            progressBar.style.width = data.progress + '%';
+            progressBar.textContent = Math.round(data.progress) + '%';
+
+            // 更新指标
+            metricEpoch.textContent = `${data.epoch}/${data.total_epochs}`;
+            metricLoss.textContent = data.loss.toFixed(4);
+            metricReward.textContent = data.reward.toFixed(4);
+        }
+
+        // 更新训练曲线图
+        function updateTrainingCurve(plotUrl, message) {
+            const container = document.getElementById('training-curves-container');
+            const img = document.getElementById('training-curve-img');
+            const info = document.getElementById('curve-update-info');
+
+            // 显示曲线容器
+            container.style.display = 'block';
+
+            // 添加时间戳防止浏览器缓存
+            const timestamp = new Date().getTime();
+            img.src = plotUrl + '?t=' + timestamp;
+
+            // 更新提示信息
+            info.textContent = message;
+
+            // 添加淡入效果
+            img.style.opacity = '0.5';
+            img.onload = function() {
+                img.style.transition = 'opacity 0.3s';
+                img.style.opacity = '1';
+            };
+        }
+
+        // 添加日志条目
+        function addLogEntry(message) {
+            const trainingLog = document.getElementById('training-log');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            trainingLog.appendChild(logEntry);
+            
+            // 自动滚动到底部
+            trainingLog.scrollTop = trainingLog.scrollHeight;
+        }
+
+        // 处理训练完成
+        function handleTrainingComplete(data) {
+            const statusMsg = document.getElementById('status-message');
+            const startButton = document.getElementById('start-button');
+            const resultsPanel = document.getElementById('results-panel');
+            const resultsContent = document.getElementById('results-content');
+
+            // 关闭 SSE 连接
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // 显示完成消息
+            addLogEntry('✅ ' + data.message);
+
+            // 重新启用按钮
+            startButton.disabled = false;
+            startButton.style.opacity = '1';
+            startButton.textContent = '🚀 开始训练';
+
+            // 显示训练结果
+            const results = data.results;
+            let resultsHTML = `
+                <div class="result-item">
+                    <div class="result-label">模型</div>
+                    <div class="result-value">${results.model.toUpperCase()}</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">问题类型</div>
+                    <div class="result-value">${results.problem.toUpperCase()}</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">训练策略</div>
+                    <div class="result-value">${results.strategy.toUpperCase()}</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">训练轮数</div>
+                    <div class="result-value">${results.total_epochs}</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">最终 Loss</div>
+                    <div class="result-value">${results.final_loss.toFixed(4)}</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">最终 Reward</div>
+                    <div class="result-value">${results.final_reward.toFixed(4)}</div>
+                </div>
+                <div class="result-item" style="grid-column: 1 / -1;">
+                    <div class="result-label">最佳 Reward</div>
+                    <div class="result-value" style="font-size: 2rem;">🏆 ${results.best_reward.toFixed(4)}</div>
+                </div>
+            `;
+
+            // 如果有训练曲线，显示训练曲线
+            if (results.training_curve) {
+                resultsHTML += `
+                    <div style="grid-column: 1 / -1; margin-top: 1rem;">
+                        <div class="result-label" style="margin-bottom: 1rem;">📈 训练曲线</div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 12px;">
+                            <img src="${results.training_curve}?t=${new Date().getTime()}" 
+                                 style="width: 100%; border-radius: 8px; background: white;" 
+                                 alt="训练曲线">
+                            <p style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.9; text-align: center;">
+                                📊 Loss 和 Reward 随训练轮次的变化趋势
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 如果有可视化图片，添加图片展示
+            if (results.plot_paths && results.plot_paths.length > 0) {
+                resultsHTML += '<div style="grid-column: 1 / -1; margin-top: 1rem;">';
+                resultsHTML += '<div class="result-label" style="margin-bottom: 1rem;">📊 路径可视化对比</div>';
+                resultsHTML += '<div style="display: grid; gap: 1.5rem;">';
+                results.plot_paths.forEach((path, index) => {
+                    resultsHTML += `
+                        <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 12px;">
+                            <h4 style="margin-bottom: 1rem; font-size: 1.1rem;">问题 ${index + 1} - 静态对比图</h4>
+                            <img src="${path}" style="width: 100%; border-radius: 8px; margin-bottom: 1rem;" alt="路径对比图 ${index + 1}">
+                            
+                            ${results.animation_paths && results.animation_paths[index] ? `
+                                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid rgba(255,255,255,0.2);">
+                                    <h4 style="margin-bottom: 1rem; font-size: 1.1rem;">🎬 动态路线生成过程</h4>
+                                    <img src="${results.animation_paths[index]}" style="width: 100%; border-radius: 8px; background: white;" alt="动态路线图 ${index + 1}">
+                                    <p style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.9; text-align: center;">
+                                        ⏱️ 动画展示路线逐步构建过程和成本变化
+                                    </p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                resultsHTML += '</div></div>';
+            }
+
+            // 如果有 checkpoint 路径，显示
+            if (results.checkpoint_path) {
+                resultsHTML += `
+                    <div class="result-item" style="grid-column: 1 / -1;">
+                        <div class="result-label">检查点已保存</div>
+                        <div class="result-value" style="font-size: 0.9rem; word-break: break-all;">${results.checkpoint_path}</div>
+                    </div>
+                `;
+            }
+
+            resultsContent.innerHTML = resultsHTML;
+            resultsPanel.className = 'results-panel show';
+
+            // 更新状态消息
+            statusMsg.className = 'status-message show success';
+            statusMsg.innerHTML = '✅ 训练完成！请查看下方结果详情。';
+        }
+
+        // 处理训练错误
+        function handleTrainingError(data) {
+            const statusMsg = document.getElementById('status-message');
+            const startButton = document.getElementById('start-button');
+
+            // 关闭 SSE 连接
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // 显示错误消息
+            addLogEntry('❌ ' + data.message);
+
+            // 重新启用按钮
+            startButton.disabled = false;
+            startButton.style.opacity = '1';
+            startButton.textContent = '🚀 开始训练';
+
+            statusMsg.className = 'status-message show error';
+            statusMsg.innerHTML = '❌ 训练出错: ' + data.message;
+        }
+
+        // 页面滚动效果
+        window.addEventListener('scroll', function() {
+            const header = document.querySelector('.header');
+            if (window.scrollY > 50) {
+                header.style.boxShadow = '0 2px 30px rgba(0,0,0,0.15)';
+            } else {
+                header.style.boxShadow = '0 2px 20px rgba(0,0,0,0.1)';
+            }
+        });
+
+        // 表单验证
+        document.getElementById('epochs').addEventListener('input', function() {
+            if (this.value < 1) this.value = 1;
+            if (this.value > 10000) this.value = 10000;
+        });
+
+        document.getElementById('batch-size').addEventListener('input', function() {
+            if (this.value < 1) this.value = 1;
+            if (this.value > 2048) this.value = 2048;
+        });
+
+        // 查看模型详情
+    </script>
+    
+    <!-- 退出登录功能 -->
+    <script>
+        async function logout() {
+            if (!confirm('确定要退出登录吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('已退出登录');
+                    window.location.href = '/login';
+                } else {
+                    alert('退出失败：' + result.message);
+                }
+            } catch (error) {
+                console.error('退出登录错误:', error);
+                alert('网络错误，请重试');
+            }
+        }
+    </script>
+    
+<!-- 统一导航逻辑 -->
+<script src="/static/js/navigation.js"></script>
+</body>
+</html>

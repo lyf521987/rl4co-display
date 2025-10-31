@@ -5,7 +5,8 @@
     <title>算法性能对比 - RL4CO 平台 | 山西大学</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    
+    <!-- 统一导航样式 -->
+    <link rel="stylesheet" href="/static/css/navigation.css">
     <style>
         * {
             margin: 0;
@@ -18,56 +19,6 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #333;
             min-height: 100vh;
-        }
-
-        .header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 1rem 2rem;
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-        }
-
-        .nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .university-badge {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #667eea;
-            border-left: 4px solid #667eea;
-            padding-left: 1rem;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-        }
-
-        .nav-links a {
-            color: #333;
-            text-decoration: none;
-            font-size: 1rem;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-
-        .nav-links a:hover, .nav-links a.active {
-            color: #667eea;
         }
 
         .main-container {
@@ -291,15 +242,18 @@
     </style>
 </head>
 <body>
+        <!-- 统一导航栏 -->
     <header class="header">
         <nav class="nav">
             <div class="logo-section">
-                <div class="university-badge">山西大学</div>
+                <div class="university-badge">🎓 山西大学 · RL4CO</div>
             </div>
             <div class="nav-links">
-                <a href="/home">首页</a>
-                <a href="/benchmark" class="active">算法对比</a>
-                <a href="#about">关于</a>
+                <a href="/" {% if active_page == 'home' %}class="active"{% endif %}>🏠 训练首页</a>
+                <a href="/benchmark" {% if active_page == 'benchmark' %}class="active"{% endif %}>📊 算法对比</a>
+                <a href="/model_info" {% if active_page == 'model_info' %}class="active"{% endif %}>📚 模型知识库</a>
+                <a href="/file_manager" {% if active_page == 'file_manager' %}class="active"{% endif %}>🗂️ 文件管理</a>
+                <a href="/profile" {% if active_page == 'profile' %}class="active"{% endif %}>👤 我的账户</a>
             </div>
         </nav>
     </header>
@@ -1117,6 +1071,39 @@
             myChart.resize();
         });
     </script>
+    
+    <!-- 退出登录功能 -->
+    <script>
+        async function logout() {
+            if (!confirm('确定要退出登录吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('已退出登录');
+                    window.location.href = '/login';
+                } else {
+                    alert('退出失败：' + result.message);
+                }
+            } catch (error) {
+                console.error('退出登录错误:', error);
+                alert('网络错误，请重试');
+            }
+        }
+    </script>
+    
+<!-- 统一导航逻辑 -->
+<script src="/static/js/navigation.js"></script>
 </body>
 </html>
 

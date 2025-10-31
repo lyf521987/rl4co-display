@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>模型知识库 - RL4CO 平台 | 山西大学</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 统一导航样式 -->
+    <link rel="stylesheet" href="/static/css/navigation.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        /* 统一的顶部导航栏 */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .university-badge {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #667eea;
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: #333;
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: #667eea;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 100px auto 50px;
+            padding: 0 2rem;
+        }
+
+        .hero-section {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .hero-section h1 {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-section .subtitle {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .filter-section {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filter-tab {
+            padding: 0.8rem 1.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            background: white;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .filter-tab:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .filter-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .model-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .model-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+
+        .model-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .model-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .model-year {
+            background: #667eea;
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .model-full-name {
+            font-size: 0.95rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .model-category {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            color: #667eea;
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .model-description {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .model-paper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #667eea;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .model-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .stats-bar {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.3rem;
+        }
+
+        @media (max-width: 768px) {
+            .models-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-tabs {
+                flex-direction: column;
+            }
+
+            .stats-bar {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 统一的顶部导航栏 -->
+    <div class="header">
+        <nav class="nav">
+            <div class="logo-section">
+                <div class="university-badge">🎓 山西大学 · RL4CO</div>
+            </div>
+            <div class="nav-links">
+                <a href="/">🏠 训练首页</a>
+                <a href="/benchmark">📊 算法对比</a>
+                <a href="/model_info" class="active">📚 模型知识库</a>
+                <a href="/file_manager">🗂️ 文件管理</a>
+                <a href="/profile">👤 我的账户</a>
+            </div>
+        </nav>
+    </div>
+
+    <div class="main-container">
+        <!-- 页面标题 -->
+        <div class="hero-section">
+            <h1>📚 模型知识库</h1>
+            <p class="subtitle">探索 20+ 种强化学习组合优化模型，了解前沿算法</p>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value" id="totalModels">{{ models|length }}</div>
+                <div class="stat-label">模型总数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="categoryCount">{{ categories|length }}</div>
+                <div class="stat-label">分类数量</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">2020+</div>
+                <div class="stat-label">最早年份</div>
+            </div>
+        </div>
+
+        <!-- 分类过滤 -->
+        <div class="filter-section">
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-category="all">🌟 全部模型</button>
+                <button class="filter-tab" data-category="构造方法（自回归）">🔄 构造方法（自回归）</button>
+                <button class="filter-tab" data-category="构造方法（非自回归）">⚡ 构造方法（非自回归）</button>
+                <button class="filter-tab" data-category="改进方法">🚀 改进方法</button>
+                <button class="filter-tab" data-category="搜索方法">🔍 搜索方法</button>
+            </div>
+        </div>
+
+        <!-- 模型卡片网格 -->
+        <div class="models-grid" id="modelsGrid">
+            {% for model_id, model in models.items() %}
+            <div class="model-card" data-category="{{ model.category }}" onclick="window.location.href='/model_info/{{ model_id }}'">
+                <div class="model-card-header">
+                    <div>
+                        <div class="model-name">{{ model.name }}</div>
+                        <div class="model-full-name">{{ model.full_name }}</div>
+                    </div>
+                    {% if model.year %}
+                    <div class="model-year">{{ model.year }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="model-category">{{ model.category }}</div>
+                
+                {% if model.paper_venue %}
+                <div class="model-paper">
+                    <span>📄</span>
+                    <span>{{ model.paper_venue }}</span>
+                </div>
+                {% endif %}
+
+                <div class="model-actions">
+                    <a href="/model_info/{{ model_id }}" class="btn btn-primary" onclick="event.stopPropagation()">
+                        查看详情 →
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 统一导航逻辑 -->
+    <script src="/static/js/navigation.js"></script>
+    
+    <script>
+        // 分类过滤功能
+        const filterTabs = document.querySelectorAll('.filter-tab');
+        const modelCards = document.querySelectorAll('.model-card');
+
+        filterTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // 更新激活状态
+                filterTabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+
+                const category = this.dataset.category;
+
+                // 过滤模型卡片
+                modelCards.forEach(card => {
+                    if (category === 'all' || card.dataset.category === category) {
+                        card.style.display = 'block';
+                        // 添加淡入动画
+                        card.style.animation = 'fadeIn 0.5s';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+
+                // 检查是否有可见的卡片
+                const visibleCards = Array.from(modelCards).filter(card => card.style.display !== 'none');
+                if (visibleCards.length === 0) {
+                    const grid = document.getElementById('modelsGrid');
+                    grid.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="empty-state-icon">🔍</div>
+                            <div class="empty-state-text">该分类下暂无模型</div>
+                        </div>
+                    `;
+                }
+            });
+        });
+
+        // 淡入动画
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
+

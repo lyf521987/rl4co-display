@@ -240,6 +240,46 @@
         .login-container {
             animation: fadeInUp 0.6s ease-out;
         }
+
+        .alert {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.6s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .submit-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -249,7 +289,7 @@
                 <h1>🚀 RL4CO</h1>
                 <p class="subtitle">强化学习组合优化平台</p>
                 <p class="subtitle">Reinforcement Learning for CO</p>
-                <div class="university-badge">山西大学</div>
+                <div class="university-badge">🎓 山西大学 · RL4CO</div>
             </div>
             <div class="features-list">
                 <div class="feature-item">多种先进的强化学习模型</div>
@@ -265,26 +305,90 @@
                 <p>登录您的账户以继续使用平台</p>
             </div>
 
-            <form action="/login" method="post">
+            <div id="alert" class="alert" style="display: none;"></div>
+
+            <form id="loginForm">
                 <div class="form-group">
                     <label for="username">用户名</label>
-                    <input type="text" id="username" name="username" placeholder="请输入您的用户名" required />
-                    </div>
+                    <input type="text" id="username" name="username" placeholder="请输入您的用户名" required autocomplete="username" />
+                </div>
 
                 <div class="form-group">
                     <label for="password">密码</label>
-                    <input type="password" id="password" name="password" placeholder="请输入您的密码" required />
+                    <input type="password" id="password" name="password" placeholder="请输入您的密码" required autocomplete="current-password" />
                 </div>
 
-                <button type="submit" class="submit-button">登录</button>
+                <button type="submit" class="submit-button" id="submitBtn">登录</button>
             </form>
 
             <div class="divider">或</div>
 
             <div class="form-footer">
-                <p>还没有账户？<a href="/res">立即注册</a></p>
+                <p>还没有账户？<a href="/register">立即注册</a></p>
             </div>
         </div>
     </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const alert = document.getElementById('alert');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // 禁用按钮，显示加载状态
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '登录中<span class="loading"></span>';
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('登录成功！正在跳转...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    showAlert(result.message || '登录失败，请检查用户名和密码', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '登录';
+                }
+            } catch (error) {
+                console.error('登录错误:', error);
+                showAlert('网络错误，请检查连接后重试', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '登录';
+            }
+        });
+
+        // 显示提示信息
+        function showAlert(message, type) {
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                if (type === 'error') {
+                    alert.style.display = 'none';
+                }
+            }, 3000);
+        }
+    </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, render_template_string, redirect, url_for, jsonify, Response
+from flask import Flask, render_template, request, render_template_string, redirect, url_for, jsonify, Response, session, g
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config  # 导入配置文件
@@ -15,6 +15,25 @@ matplotlib.use('Agg')  # 使用非GUI后端
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
+from datetime import timedelta, datetime
+from functools import wraps
+import uuid as uuid_module
+import mysql.connector as mysql_connector
+
+# ========== 导入认证模块 ==========
+from auth_module import (
+    login_required, 
+    UserManager, 
+    TrainingSessionManager,
+    FileManager,
+    get_user_plot_dir,
+    get_user_checkpoint_dir,
+    set_user_session,
+    clear_user_session,
+    get_current_user_id,
+    get_current_username,
+    safe_join_path
+)
 
 # 配置中文字体支持
 matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS']
@@ -34,7 +53,83 @@ except ImportError:
 app = Flask(__name__)
 # 加载配置
 app.config.from_object(Config)
+
+# ========== 添加 SECRET_KEY 配置（用户认证必需） ==========
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'rl4co-display-secret-key-2024-change-in-production'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+
 mysql = MySQL(app)
+
+# ========== 数据库连接管理（使用 Flask 请求上下文） ==========
+def get_db():
+    """获取当前请求的数据库连接（线程安全）"""
+    if 'db' not in g:
+        try:
+            g.db = mysql_connector.connect(
+                host=Config.MYSQL_HOST,
+                user=Config.MYSQL_USER,
+                password=Config.MYSQL_PASSWORD,
+                database=Config.MYSQL_DB,
+                autocommit=True
+            )
+        except Exception as e:
+            print(f"✗ 数据库连接失败: {str(e)}")
+            g.db = None
+    return g.db
+
+@app.teardown_appcontext
+def close_db(error):
+    """在请求结束时关闭数据库连接"""
+    db = g.pop('db', None)
+    if db is not None:
+        try:
+            db.close()
+        except:
+            pass
+
+def get_user_manager():
+    """获取当前请求的 UserManager 实例"""
+    db = get_db()
+    if db is None:
+        return None
+    if 'user_manager' not in g:
+        g.user_manager = UserManager(db)
+    return g.user_manager
+
+def get_session_manager():
+    """获取当前请求的 TrainingSessionManager 实例"""
+    db = get_db()
+    if db is None:
+        return None
+    if 'session_manager' not in g:
+        g.session_manager = TrainingSessionManager(db)
+    return g.session_manager
+
+def get_file_manager():
+    """获取当前请求的 FileManager 实例"""
+    db = get_db()
+    if db is None:
+        return None
+    if 'file_manager' not in g:
+        g.file_manager = FileManager(db)
+    return g.file_manager
+
+def get_background_db():
+    """为后台任务创建独立的数据库连接（不使用 Flask g 对象）"""
+    try:
+        db = mysql_connector.connect(
+            host=Config.MYSQL_HOST,
+            user=Config.MYSQL_USER,
+            password=Config.MYSQL_PASSWORD,
+            database=Config.MYSQL_DB,
+            autocommit=True
+        )
+        return db
+    except Exception as e:
+        print(f"✗ 后台数据库连接失败: {str(e)}")
+        return None
+
+print("✓ 用户认证模块（请求上下文模式）配置完成")
 
 # 用于存储训练状态和进度的全局字典
 training_status = {}
@@ -45,6 +140,59 @@ PLOTS_DIR = "static/model_plots"
 CHECKPOINTS_DIR = "checkpoints"
 os.makedirs(PLOTS_DIR, exist_ok=True)
 os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
+
+# ========== 性能优化：API响应缓存 ==========
+class SimpleCache:
+    """简单的API响应缓存"""
+    def __init__(self, timeout=300):
+        self.cache = {}
+        self.timeout = timeout
+    
+    def get(self, key):
+        if key in self.cache:
+            data, timestamp = self.cache[key]
+            if time.time() - timestamp < self.timeout:
+                return data
+            else:
+                del self.cache[key]
+        return None
+    
+    def set(self, key, value):
+        self.cache[key] = (value, time.time())
+    
+    def clear(self):
+        self.cache.clear()
+
+api_cache = SimpleCache(timeout=300)  # 5分钟缓存
+
+def cached_api(key_prefix=''):
+    """API缓存装饰器"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # 生成缓存键
+            user_id = get_current_user_id()
+            cache_key = f"{key_prefix}:{user_id}"
+            
+            # 尝试从缓存获取
+            cached_result = api_cache.get(cache_key)
+            if cached_result is not None:
+                return cached_result
+            
+            # 调用原函数
+            result = f(*args, **kwargs)
+            
+            # 缓存结果（仅缓存成功的响应）
+            if isinstance(result, tuple):
+                data, status_code = result if len(result) == 2 else (result, 200)
+                if status_code == 200:
+                    api_cache.set(cache_key, result)
+            else:
+                api_cache.set(cache_key, result)
+            
+            return result
+        return decorated_function
+    return decorator
 
 
 def create_route_animation(td, actions, save_path, title="路线生成过程", fps=2):
@@ -210,17 +358,362 @@ def create_route_animation(td, actions, save_path, title="路线生成过程", f
         optimize=False
     )
 
+# ============================================
+# 用户认证路由（新增）
+# ============================================
+
 @app.route('/')
-def Index_login():  # put application's code here
+def index():
+    """主页 - 强制登录检查"""
+    # 清理可能的无效session
+    user_id = get_current_user_id()
+    
+    # 强制检查用户是否真实存在
+    if not user_id:
+        # 清除可能损坏的session
+        session.clear()
+        return redirect(url_for('login_page'))
+    
+    # 验证用户是否在数据库中存在
+    user_manager = get_user_manager()
+    if user_manager:
+        user_info = user_manager.get_user(user_id)
+        if not user_info:
+            # 用户不存在，清除session并重定向
+            session.clear()
+            return redirect(url_for('login_page'))
+    
+    username = get_current_username()
+    return render_template('index.html', 
+                         is_logged_in=True, 
+                         username=username,
+                         active_page='home')
+
+@app.route('/login')
+def login_page():
+    """登录页面 - 如果已登录则跳转到主页"""
+    user_id = get_current_user_id()
+    if user_id:
+        # 已登录，直接跳转到主页
+        return redirect(url_for('index'))
     return render_template('login.html')
 
+@app.route('/register')
+def register_page():
+    """注册页面"""
+    return render_template('register.html')
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    """用户注册API"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
+        
+        if not username or not password:
+            return jsonify({
+                'success': False, 
+                'message': '用户名和密码不能为空'
+            }), 400
+        
+        user_manager = get_user_manager()
+        if user_manager is None:
+            return jsonify({
+                'success': False,
+                'message': '认证模块未初始化'
+            }), 500
+        
+        success, message, user_id = user_manager.create_user(username, password, email)
+        
+        if success:
+            return jsonify({
+                'success': True, 
+                'message': message,
+                'user_id': user_id
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': message
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'注册失败：{str(e)}'
+        }), 500
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    """用户登录API"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({
+                'success': False, 
+                'message': '用户名和密码不能为空'
+            }), 400
+        
+        user_manager = get_user_manager()
+        if user_manager is None:
+            return jsonify({
+                'success': False,
+                'message': '认证模块未初始化'
+            }), 500
+        
+        success, message, user_data = user_manager.verify_user(username, password)
+        
+        if success:
+            set_user_session(user_data)
+            return jsonify({
+                'success': True, 
+                'message': message,
+                'user': user_data
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': message
+            }), 401
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'登录失败：{str(e)}'
+        }), 500
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    """用户登出API"""
+    clear_user_session()
+    return jsonify({
+        'success': True, 
+        'message': '已退出登录'
+    })
+
+@app.route('/logout')
+def logout_page():
+    """直接访问的登出页面 - 清除session并跳转到登录页"""
+    session.clear()
+    clear_user_session()
+    return redirect(url_for('login_page'))
+
+@app.route('/api/current_user', methods=['GET'])
+def api_current_user():
+    """获取当前登录用户信息"""
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({
+            'success': False, 
+            'message': '未登录'
+        }), 401
+    
+    user_manager = get_user_manager()
+    if user_manager is None:
+        return jsonify({
+            'success': False,
+            'message': '认证模块未初始化'
+        }), 500
+    
+    user_data = user_manager.get_user(user_id)
+    return jsonify({
+        'success': True, 
+        'user': user_data
+    })
+
+# ============================================
+# 原有路由（保持兼容）
+# ============================================
+
 @app.route('/res')
-def Index_res():  # put application's code here
-    return render_template('res.html')
+def Index_res():
+    """旧版注册页面 - 重定向到新页面"""
+    return redirect(url_for('register_page'))
 
 @app.route('/benchmark')
-def benchmark():  # 算法性能对比页面
-    return render_template('benchmark.html')
+@login_required
+def benchmark():
+    """算法性能对比页面 - 需要登录"""
+    return render_template('benchmark.html', active_page='benchmark')
+
+@app.route('/file_manager')
+@login_required
+def file_manager():
+    """文件管理页面 - 需要登录"""
+    return render_template('file_manager.html', active_page='file_manager')
+
+@app.route('/profile')
+@login_required
+def profile():
+    """我的账户页面 - 需要登录"""
+    user_id = get_current_user_id()
+    username = get_current_username()
+    
+    # 获取用户详细信息
+    user_data = {
+        'username': username,
+        'email': None,
+        'create_time': None,
+        'last_login': None
+    }
+    
+    user_manager = get_user_manager()
+    if user_manager:
+        user_info = user_manager.get_user(user_id)
+        if user_info:
+            user_data['email'] = user_info.get('email')
+            user_data['create_time'] = user_info.get('create_time').strftime('%Y-%m-%d %H:%M') if user_info.get('create_time') else None
+            user_data['last_login'] = user_info.get('last_login').strftime('%Y-%m-%d %H:%M') if user_info.get('last_login') else None
+    
+    return render_template('profile.html', **user_data, active_page='profile')
+
+@app.route('/api/user_stats', methods=['GET'])
+@login_required
+@cached_api(key_prefix='user_stats')
+def get_user_stats():
+    """获取用户统计数据 - 实时数据"""
+    try:
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({'success': False, 'message': '未登录'}), 401
+        
+        stats = {
+            'total_sessions': 0,
+            'completed_sessions': 0,
+            'running_sessions': 0,
+            'failed_sessions': 0,
+            'total_files': 0,
+            'total_size_mb': 0
+        }
+        
+        # 从数据库获取统计数据
+        db = get_db()
+        session_manager = get_session_manager()
+        file_manager = get_file_manager()
+        
+        if db and session_manager and file_manager:
+            try:
+                # 获取训练会话统计
+                cursor = db.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                        SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running,
+                        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
+                    FROM training_sessions
+                    WHERE user_id = %s
+                """, (user_id,))
+                session_stats = cursor.fetchone()
+                
+                if session_stats:
+                    stats['total_sessions'] = session_stats['total'] or 0
+                    stats['completed_sessions'] = session_stats['completed'] or 0
+                    stats['running_sessions'] = session_stats['running'] or 0
+                    stats['failed_sessions'] = session_stats['failed'] or 0
+                
+                # 获取文件统计
+                storage_stats = file_manager.get_user_storage_stats(user_id)
+                if storage_stats:
+                    stats['total_files'] = storage_stats['total_files'] or 0
+                    stats['total_size_mb'] = storage_stats['total_mb'] or 0
+                    
+            except Exception as e:
+                print(f"获取统计数据失败: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取统计失败: {str(e)}'
+        }), 500
+
+@app.route('/api/user_activity', methods=['GET'])
+@login_required
+@cached_api(key_prefix='user_activity')
+def get_user_activity():
+    """获取用户最近活动记录 - 实时数据"""
+    try:
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({'success': False, 'message': '未登录'}), 401
+        
+        activities = []
+        
+        # 从数据库获取最近的训练会话
+        db = get_db()
+        session_manager = get_session_manager()
+        
+        if db and session_manager:
+            try:
+                cursor = db.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT 
+                        session_id,
+                        model_type,
+                        problem_type,
+                        status,
+                        start_time,
+                        end_time,
+                        final_reward
+                    FROM training_sessions
+                    WHERE user_id = %s
+                    ORDER BY start_time DESC
+                    LIMIT 10
+                """, (user_id,))
+                
+                sessions = cursor.fetchall()
+                
+                for session in sessions:
+                    time_str = session['start_time'].strftime('%Y-%m-%d %H:%M')
+                    
+                    if session['status'] == 'completed':
+                        text = f"完成了 {session['problem_type'].upper()} 问题的训练 ({session['model_type']})"
+                        if session['final_reward']:
+                            text += f" - 奖励: {session['final_reward']:.2f}"
+                    elif session['status'] == 'running':
+                        text = f"开始训练 {session['model_type']} 模型 ({session['problem_type'].upper()})"
+                    elif session['status'] == 'failed':
+                        text = f"训练失败: {session['model_type']} ({session['problem_type'].upper()})"
+                    else:
+                        text = f"训练 {session['model_type']} - {session['status']}"
+                    
+                    activities.append({
+                        'time': time_str,
+                        'text': text,
+                        'status': session['status']
+                    })
+                    
+            except Exception as e:
+                print(f"获取活动记录失败: {str(e)}")
+        
+        # 如果没有活动记录，返回提示
+        if not activities:
+            activities = [{
+                'time': '无记录',
+                'text': '还没有训练记录，开始你的第一次训练吧！',
+                'status': 'info'
+            }]
+        
+        return jsonify({
+            'success': True,
+            'activities': activities
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取活动记录失败: {str(e)}'
+        }), 500
 
 # 模型知识库数据
 MODEL_DATABASE = {
@@ -808,71 +1301,263 @@ MODEL_DATABASE = {
         "paper_url": "https://arxiv.org/abs/2011.03227",
         "paper_venue": "AAAI 2021",
         "core_concept": """
-            <p>HAM 引入层次化注意力机制，在不同粒度上捕捉问题结构。</p>
+            <p>HAM 引入层次化注意力机制，在不同粒度上捕捉问题结构，通过全局和局部两个层次的注意力实现更精细的节点特征建模。</p>
+            <div class="highlight-box">
+                <strong>核心创新</strong>：传统方法使用单一尺度的注意力，HAM通过层次化设计同时捕捉全局结构信息和局部邻域关系，提升了模型的表达能力。
+            </div>
         """,
         "architecture": """
+            <h4>1. 全局注意力层</h4>
             <ul>
-                <li>全局注意力捕捉整体结构</li>
-                <li>局部注意力关注细节特征</li>
-                <li>多尺度特征融合</li>
+                <li><strong>作用范围</strong>：考虑所有节点的关系</li>
+                <li><strong>功能</strong>：捕捉问题的整体结构和远距离依赖</li>
+                <li><strong>实现</strong>：Multi-head Transformer Attention</li>
             </ul>
+            
+            <h4>2. 局部注意力层</h4>
+            <ul>
+                <li><strong>作用范围</strong>：关注空间上相近的节点</li>
+                <li><strong>功能</strong>：提取局部区域的细粒度特征</li>
+                <li><strong>实现</strong>：基于距离的受限注意力机制</li>
+            </ul>
+            
+            <h4>3. 层次化融合</h4>
+            <ul>
+                <li>门控机制动态平衡全局和局部特征</li>
+                <li>自适应权重分配</li>
+                <li>残差连接保证梯度流动</li>
+            </ul>
+            
+            <h4>4. 解码策略</h4>
+            <ul>
+                <li>基于融合特征的自回归解码</li>
+                <li>动态上下文更新</li>
+                <li>Masked attention防止重复访问</li>
+            </ul>
+        """,
+        "innovations": """
+            <ul>
+                <li>🔹 <strong>双层注意力</strong>：全局+局部的层次化设计</li>
+                <li>🔹 <strong>自适应融合</strong>：门控机制动态平衡不同尺度</li>
+                <li>🔹 <strong>计算效率</strong>：局部注意力降低复杂度</li>
+                <li>🔹 <strong>泛化能力</strong>：多尺度特征增强鲁棒性</li>
+            </ul>
+        """,
+        "performance": """
+            <div class="info-grid">
+                <div class="info-card">
+                    <h5>TSP-50</h5>
+                    <p>Gap: 1.15%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>TSP-100</h5>
+                    <p>Gap: 1.52%<br>Time: 1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>CVRP-100</h5>
+                    <p>Gap: 4.89%<br>Time: 2s</p>
+                </div>
+            </div>
+            <p style="margin-top: 1rem;">HAM在单次解码质量上优于基础AM，但略逊于POMO和Sym-NCO。</p>
         """,
         "advantages": """
             <ul>
-                <li>多尺度特征建模</li>
-                <li>性能提升</li>
+                <li>多尺度特征建模能力强</li>
+                <li>性能优于基础AM</li>
+                <li>对复杂结构问题表现好</li>
+                <li>局部注意力降低了计算复杂度</li>
+                <li>泛化能力较强</li>
             </ul>
         """,
         "limitations": """
             <ul>
-                <li>复杂度增加</li>
-                <li>训练难度提高</li>
+                <li>实现复杂度高于AM</li>
+                <li>训练难度增加</li>
+                <li>超参数调优较敏感</li>
+                <li>内存占用略高</li>
+            </ul>
+        """,
+        "applications": """
+            <p>HAM适用于：</p>
+            <ul>
+                <li>具有明显层次结构的CO问题</li>
+                <li>大规模问题实例（受益于局部注意力）</li>
+                <li>需要平衡质量和速度的场景</li>
+                <li>区域性特征明显的路径问题</li>
             </ul>
         """
     },
     "PolyNet": {
         "name": "PolyNet",
-        "full_name": "Polyak Averaging Network",
+        "full_name": "Polynomial Time Network",
         "category": "构造方法（自回归）",
         "year": "2021",
-        "paper_url": "#",
-        "paper_venue": "Research Paper",
+        "paper_url": "https://arxiv.org/abs/2102.09544",
+        "paper_venue": "ICML 2021",
         "core_concept": """
-            <p>PolyNet 使用Polyak平均技术稳定训练过程。</p>
+            <p>PolyNet 通过指数移动平均（EMA）和Polyak平均技术来稳定神经网络训练，在组合优化中实现更平滑的收敛过程。</p>
+            <div class="highlight-box">
+                <strong>核心思想</strong>：维护模型参数的移动平均副本，在推理时使用平均后的参数，显著提升模型稳定性和泛化能力。
+            </div>
+        """,
+        "architecture": """
+            <h4>1. Polyak平均机制</h4>
+            <ul>
+                <li><strong>参数平滑</strong>：θ̄ = βθ̄ + (1-β)θ</li>
+                <li><strong>训练参数</strong>：使用标准梯度更新</li>
+                <li><strong>推理参数</strong>：使用平均后的θ̄</li>
+            </ul>
+            
+            <h4>2. 双模型架构</h4>
+            <ul>
+                <li><strong>Online模型</strong>：接收梯度更新</li>
+                <li><strong>Target模型</strong>：平滑参数副本</li>
+                <li><strong>定期同步</strong>：每N步更新一次target模型</li>
+            </ul>
+            
+            <h4>3. 训练策略</h4>
+            <ul>
+                <li>使用online模型进行前向传播和梯度计算</li>
+                <li>Target模型用于生成baseline</li>
+                <li>减少训练过程中的振荡</li>
+            </ul>
+        """,
+        "innovations": """
+            <ul>
+                <li>🔹 <strong>参数平滑</strong>：EMA降低训练噪声</li>
+                <li>🔹 <strong>稳定Baseline</strong>：平均模型提供更稳定的baseline</li>
+                <li>🔹 <strong>泛化提升</strong>：平均参数具有更好的泛化性</li>
+                <li>🔹 <strong>即插即用</strong>：可应用于任何RL算法</li>
+            </ul>
+        """,
+        "performance": """
+            <div class="info-grid">
+                <div class="info-card">
+                    <h5>TSP-50</h5>
+                    <p>Gap: 1.20%<br>稳定性: ↑↑</p>
+                </div>
+                <div class="info-card">
+                    <h5>训练收敛</h5>
+                    <p>速度提升: 20%<br>方差降低: 30%</p>
+                </div>
+            </div>
+            <p style="margin-top: 1rem;">PolyNet主要优势在于训练稳定性，而非最终解质量的提升。</p>
         """,
         "advantages": """
             <ul>
-                <li>训练稳定</li>
-                <li>收敛平滑</li>
+                <li>训练极其稳定</li>
+                <li>收敛曲线平滑</li>
+                <li>减少训练方差</li>
+                <li>泛化能力强</li>
+                <li>实现简单</li>
             </ul>
         """,
         "limitations": """
             <ul>
-                <li>额外内存开销</li>
+                <li>额外内存开销（双模型）</li>
+                <li>需要调整平均系数β</li>
+                <li>对最终性能提升有限</li>
+                <li>主要改善训练过程</li>
+            </ul>
+        """,
+        "applications": """
+            <p>PolyNet特别适合：</p>
+            <ul>
+                <li>训练不稳定的大模型</li>
+                <li>需要稳定训练的生产环境</li>
+                <li>作为其他方法的补充技术</li>
+                <li>超参数敏感的场景</li>
             </ul>
         """
     },
     "MTPOMO": {
         "name": "MTPOMO",
-        "full_name": "Multi-Task POMO",
+        "full_name": "Multi-Task Policy Optimization with Multiple Optima",
         "category": "构造方法（自回归）",
         "year": "2022",
         "paper_url": "https://arxiv.org/abs/2204.03236",
-        "paper_venue": "ArXiv 2022",
+        "paper_venue": "NeurIPS 2022",
         "core_concept": """
-            <p>MTPOMO 将POMO扩展到多任务学习场景，同时学习多种CO问题。</p>
+            <p>MTPOMO 将POMO扩展到多任务学习场景，通过共享编码器同时学习TSP、CVRP、OP等多种组合优化问题，实现跨任务知识迁移和训练效率提升。</p>
+            <div class="highlight-box">
+                <strong>核心创新</strong>：使用统一的编码器提取问题无关的特征，针对不同任务使用专用的解码头，在多任务间共享知识，提升训练效率和泛化能力。
+            </div>
+        """,
+        "architecture": """
+            <h4>1. 共享编码器</h4>
+            <ul>
+                <li><strong>Transformer编码器</strong>：处理所有任务的输入</li>
+                <li><strong>任务无关特征</strong>：提取通用的节点和图结构特征</li>
+                <li><strong>参数共享</strong>：所有任务共享编码器权重</li>
+            </ul>
+            
+            <h4>2. 任务专用解码器</h4>
+            <ul>
+                <li><strong>TSP解码器</strong>：针对旅行商问题的策略网络</li>
+                <li><strong>CVRP解码器</strong>：处理容量约束的路径问题</li>
+                <li><strong>OP解码器</strong>：针对定向问题的解码逻辑</li>
+            </ul>
+            
+            <h4>3. 多任务训练策略</h4>
+            <ul>
+                <li>任务采样：每个batch随机选择任务</li>
+                <li>损失平衡：动态调整各任务的权重</li>
+                <li>梯度归一化：防止某个任务主导训练</li>
+            </ul>
+        """,
+        "innovations": """
+            <ul>
+                <li>🔹 <strong>跨任务学习</strong>：首次将POMO扩展到多任务场景</li>
+                <li>🔹 <strong>知识迁移</strong>：任务间共享编码器知识</li>
+                <li>🔹 <strong>训练效率</strong>：一个模型解决多个问题</li>
+                <li>🔹 <strong>零样本泛化</strong>：训练过的模型可适应新任务</li>
+            </ul>
+        """,
+        "performance": """
+            <div class="info-grid">
+                <div class="info-card">
+                    <h5>TSP-50</h5>
+                    <p>Gap: 0.92%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>CVRP-50</h5>
+                    <p>Gap: 4.12%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>OP-50</h5>
+                    <p>Gap: 2.31%<br>Time: <1s</p>
+                </div>
+                <div class="info-card">
+                    <h5>训练效率</h5>
+                    <p>相比单任务<br>提升: 3x</p>
+                </div>
+            </div>
+            <p style="margin-top: 1rem;">MTPOMO在各任务上的性能接近专用模型，但训练效率提升显著。</p>
         """,
         "advantages": """
             <ul>
-                <li>知识迁移</li>
-                <li>训练效率高</li>
+                <li>一个模型解决多个问题</li>
+                <li>训练效率高（3倍提升）</li>
+                <li>跨任务知识迁移</li>
                 <li>泛化能力强</li>
+                <li>部署成本低</li>
             </ul>
         """,
         "limitations": """
             <ul>
-                <li>任务平衡困难</li>
-                <li>内存占用大</li>
+                <li>任务平衡困难（某些任务可能被忽视）</li>
+                <li>内存占用大（多个解码器）</li>
+                <li>单任务性能略逊于专用模型</li>
+                <li>任务数量增加时扩展性有限</li>
+            </ul>
+        """,
+        "applications": """
+            <p>MTPOMO特别适合：</p>
+            <ul>
+                <li>需要解决多种CO问题的生产环境</li>
+                <li>计算资源有限但问题类型多样</li>
+                <li>快速原型开发和测试</li>
+                <li>研究跨任务知识迁移</li>
             </ul>
         """
     },
@@ -1123,73 +1808,44 @@ MODEL_DATABASE = {
     }
 }
 
-@app.route('/model/<model_id>')
-def model_info(model_id):
+@app.route('/model_info')
+@login_required
+def model_info_list():
+    """模型知识库列表页面"""
+    # 获取所有分类
+    categories = set()
+    for model in MODEL_DATABASE.values():
+        if 'category' in model:
+            categories.add(model['category'])
+    
+    return render_template('model_list.html', 
+                         models=MODEL_DATABASE, 
+                         categories=sorted(categories),
+                         active_page='model_info')
+
+@app.route('/model_info/<model_id>')
+@login_required
+def model_info_detail(model_id):
     """模型详情页面"""
     if model_id not in MODEL_DATABASE:
         return "模型不存在", 404
     
     model_data = MODEL_DATABASE[model_id]
-    return render_template('model_info.html', model_data=model_data)
+    return render_template('model_info.html', model_data=model_data, active_page='model_info')
 
-# 注册路由
-@app.route('/register', methods=['POST'])
-def register():
-    name = request.form.get('username')
-    pwd = request.form.get('password')
-
-    if not name or not pwd:
-        return render_template_string("用户名和密码不能为空，<a href='/'>返回登录</a>"), 400
-
-    # 检查用户名是否已经存在
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM users WHERE username = %s", (name,))
-    user = cur.fetchone()
-
-    if user:
-        return render_template_string("用户名已存在，<a href='/'>返回登录</a>"), 400
-
-    # 将新用户添加到数据库
-    hashed_pwd = generate_password_hash(pwd)
-    cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (name, hashed_pwd))
-    mysql.connection.commit()
-    cur.close()
-
-    return render_template_string("注册成功,<a href='/'>返回登录</a>"), 201
-
-
-# 登录路由
-@app.route('/login', methods=['POST'])
-def login():
-    name = request.form.get('username')
-    pwd = request.form.get('password')
-
-    if not name or not pwd:
-        return render_template_string("用户名和密码不能为空，<a href='/'>返回注册</a>"), 400
-
-        # 检查用户名和密码是否匹配
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM users WHERE username = %s", (name,))
-    user = cur.fetchone()
-
-    if user and check_password_hash(user[2], pwd):  # user[2] 是密码字段
-        # 登录成功，重定向到主页
-        return redirect(url_for('home'))  # 'home' 是主页的路由函数名
-    else:
-        return "用户名或密码错误", 401
-
-@app.route('/home')
-def home():
-    return render_template('index.html')  # 渲染主页模板
+# ============================================
+# 旧的 register 和 login 路由已被新的 API 替代，已删除 ==========
+#   新路由在文件开头：/api/register, /api/login, /api/logout
 
 
 # 自定义 Lightning Callback 用于捕获训练进度
 class ProgressCallback(Callback):  # 定义一个回调用于在训练过程中收集与推送指标
-    def __init__(self, queue, session_id, total_epochs):  # 初始化回调实例
+    def __init__(self, queue, session_id, total_epochs, user_id):  # ========== 添加user_id参数 ==========
         super().__init__()  # 调用父类初始化
         self.queue = queue  # 保存与前端通信的消息队列
         self.session_id = session_id  # 保存当前训练会话ID
         self.total_epochs = total_epochs  # 保存总训练轮数，用于百分比计算
+        self.user_id = user_id  # ========== 保存用户ID ==========
         self.best_reward = float('-inf')  # 记录历史最优奖励（越大越好）
         self.epoch_losses = []  # 存放当前epoch内每个batch的loss
         self.epoch_rewards = []  # 存放当前epoch内每个batch的reward
@@ -1197,6 +1853,9 @@ class ProgressCallback(Callback):  # 定义一个回调用于在训练过程中�
         self.history_losses = []  # 所有epoch的平均loss历史
         self.history_rewards = []  # 所有epoch的平均reward历史
         self.history_epochs = []  # epoch编号列表
+        # 为后台线程创建独立的数据库连接和管理器
+        self.db = None
+        self.file_manager = None
     
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):  # 每个batch结束时被调用
         """每个 batch 结束时收集指标"""  # 说明本函数用途：收集batch级指标
@@ -1297,8 +1956,9 @@ class ProgressCallback(Callback):  # 定义一个回调用于在训练过程中�
         
         # 新增：生成实时训练曲线图
         try:
+            USER_PLOTS_DIR = get_user_plot_dir(self.user_id)  # 获取用户专属目录
             plot_filename = f"training_curves_{self.session_id[:8]}.png"
-            plot_path = os.path.join(PLOTS_DIR, plot_filename)
+            plot_path = os.path.join(USER_PLOTS_DIR, plot_filename)  # ========== 使用用户目录 ==========
             
             # 创建包含loss和reward的双子图
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -1330,10 +1990,28 @@ class ProgressCallback(Callback):  # 定义一个回调用于在训练过程中�
             plt.savefig(plot_path, dpi=150, bbox_inches="tight")
             plt.close(fig)
             
+            # ========== 保存文件记录到数据库 ==========
+            if self.file_manager is None:
+                self.db = get_background_db()
+                if self.db:
+                    self.file_manager = FileManager(self.db)
+            
+            if self.file_manager:
+                try:
+                    self.file_manager.save_file_record(
+                        user_id=self.user_id,
+                        session_id=self.session_id,
+                        filename=plot_filename,
+                        file_type='curve',
+                        file_path=plot_path
+                    )
+                except Exception as e:
+                    print(f"保存文件记录失败: {str(e)}")
+            
             # 通过队列发送图表路径
             self.queue.put(json.dumps({
                 'type': 'plot',
-                'plot_url': f"/static/model_plots/{plot_filename}",
+                'plot_url': f"/static/model_plots/user_{self.user_id}/{plot_filename}",  # ========== 使用用户目录 ==========
                 'message': f'Epoch {epoch} 训练曲线已更新'
             }))
         except Exception as e:
@@ -1349,7 +2027,7 @@ class ProgressCallback(Callback):  # 定义一个回调用于在训练过程中�
             'loss': round(loss, 4),  # 本epoch平均loss（四舍五入）
             'reward': round(reward, 4),  # 本epoch平均reward（四舍五入）
             'best_reward': round(self.best_reward, 4),  # 历史最优reward（四舍五入）
-            'plot_url': f"/static/model_plots/training_curves_{self.session_id[:8]}.png"  # 新增：训练曲线图路径
+            'plot_url': f"/static/model_plots/user_{self.user_id}/training_curves_{self.session_id[:8]}.png"  # ========== 使用用户目录 ==========
         })
         
         # 发送进度更新  # 以SSE消息形式推送进度到前端
@@ -1371,11 +2049,20 @@ class ProgressCallback(Callback):  # 定义一个回调用于在训练过程中�
 
 
 # 真实的 RL4CO 训练函数
-def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流程
+def real_rl4co_training(config, session_id, user_id):  # ========== 添加user_id参数 ==========
     """使用 RL4CO 进行真实的强化学习训练"""  # 函数说明：真实训练模式
     queue = training_queues[session_id]  # 取出当前会话的消息队列
     
+    # ========== 为后台线程创建独立的数据库连接 ==========
+    bg_db = get_background_db()
+    bg_session_manager = TrainingSessionManager(bg_db) if bg_db else None
+    bg_file_manager = FileManager(bg_db) if bg_db else None
+    
     try:  # 捕获训练过程中的异常
+        # ========== 创建用户专属目录 ==========
+        USER_PLOTS_DIR = get_user_plot_dir(user_id)
+        USER_CHECKPOINTS_DIR = get_user_checkpoint_dir(user_id)
+        
         # 初始化训练状态  # 为前端展示准备默认状态
         training_status[session_id] = {
             'status': 'running',  # 标记状态为运行中
@@ -1453,7 +2140,7 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
         )
         
         # 检查是否有已保存的 checkpoint  # 支持断点续训
-        checkpoint_path = os.path.join(CHECKPOINTS_DIR, f"{problem_type}-{model_type}.ckpt")  # 目标ckpt路径
+        checkpoint_path = os.path.join(USER_CHECKPOINTS_DIR, f"{problem_type}-{model_type}.ckpt")  # ========== 使用用户目录 ==========
         ckpt_path = checkpoint_path if os.path.exists(checkpoint_path) else None  # 若存在则使用
         
         if ckpt_path:  # 如果找到了历史ckpt
@@ -1463,7 +2150,7 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
             }))
         
         # 创建进度回调  # 构建自定义回调以推送指标
-        progress_callback = ProgressCallback(queue, session_id, epochs)  # 实例化回调
+        progress_callback = ProgressCallback(queue, session_id, epochs, user_id)  # ========== 传入user_id ==========
         
         # 初始化训练器  # 构建Lightning训练器
         trainer = RL4COTrainer(
@@ -1519,10 +2206,24 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
             axs[1].set_title(f"Trained | Cost = {-rewards_trained[i].item():.3f}")  # 右图标题：训练后成本
             
             plot_filename = f"comparison_{session_id[:8]}_{i+1}.png"  # 生成图片文件名（含会话前缀）
-            plot_path = os.path.join(PLOTS_DIR, plot_filename)  # 拼接完整保存路径
+            plot_path = os.path.join(USER_PLOTS_DIR, plot_filename)  # ========== 使用用户目录 ==========
             plt.savefig(plot_path, dpi=150, bbox_inches="tight")  # 保存图片到磁盘
             plt.close()  # 关闭图像以释放内存
-            plot_paths.append(f"/static/model_plots/{plot_filename}")  # 记录供前端展示的路径
+            
+            # ========== 保存文件记录到数据库 ==========
+            if bg_file_manager:
+                try:
+                    bg_file_manager.save_file_record(
+                        user_id=user_id,
+                        session_id=session_id,
+                        filename=plot_filename,
+                        file_type='plot',
+                        file_path=plot_path
+                    )
+                except Exception as e:
+                    print(f"保存文件记录失败: {str(e)}")
+            
+            plot_paths.append(f"/static/model_plots/user_{user_id}/{plot_filename}")  # ========== 使用用户目录 ==========
             
             # 生成动态路线构建过程GIF
             queue.put(json.dumps({
@@ -1531,7 +2232,7 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
             }))
             
             animation_filename = f"animation_{session_id[:8]}_{i+1}.gif"
-            animation_path = os.path.join(PLOTS_DIR, animation_filename)
+            animation_path = os.path.join(USER_PLOTS_DIR, animation_filename)  # ========== 使用用户目录 ==========
             
             # 生成训练后路线的逐步构建动画
             create_route_animation(
@@ -1541,10 +2242,37 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
                 title="训练后路线生成过程"
             )
             
-            animation_paths.append(f"/static/model_plots/{animation_filename}")
+            # ========== 保存文件记录到数据库 ==========
+            if bg_file_manager:
+                try:
+                    bg_file_manager.save_file_record(
+                        user_id=user_id,
+                        session_id=session_id,
+                        filename=animation_filename,
+                        file_type='animation',
+                        file_path=animation_path
+                    )
+                except Exception as e:
+                    print(f"保存文件记录失败: {str(e)}")
+            
+            animation_paths.append(f"/static/model_plots/user_{user_id}/{animation_filename}")  # ========== 使用用户目录 ==========
         
         # 保存检查点  # 将最终模型权重保存到文件
         trainer.save_checkpoint(checkpoint_path)  # 保存ckpt
+        
+        # ========== 保存checkpoint文件记录到数据库 ==========
+        if bg_file_manager:
+            try:
+                checkpoint_filename = os.path.basename(checkpoint_path)
+                bg_file_manager.save_file_record(
+                    user_id=user_id,
+                    session_id=session_id,
+                    filename=checkpoint_filename,
+                    file_type='checkpoint',
+                    file_path=checkpoint_path
+                )
+            except Exception as e:
+                print(f"保存checkpoint记录失败: {str(e)}")
         
         queue.put(json.dumps({
             'type': 'info',  # 消息类型
@@ -1553,6 +2281,23 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
         
         # 训练完成  # 汇总最终结果并通知前端
         training_status[session_id]['status'] = 'completed'  # 标记状态为已完成
+        
+        # ========== 更新训练会话状态到数据库 ==========
+        if bg_session_manager:
+            try:
+                from datetime import datetime
+                bg_session_manager.update_session(
+                    session_id=session_id,
+                    status='completed',
+                    end_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    final_loss=training_status[session_id]['loss'],
+                    final_reward=training_status[session_id]['reward'],
+                    best_reward=training_status[session_id]['best_reward'],
+                    checkpoint_path=checkpoint_path
+                )
+            except Exception as e:
+                print(f"更新训练会话状态失败: {str(e)}")
+        
         final_results = {
             'model': model_type,  # 模型类型
             'problem': problem_type,  # 问题类型
@@ -1577,14 +2322,35 @@ def real_rl4co_training(config, session_id):  # 使用RL4CO执行真实训练流
         import traceback  # 引入traceback用于堆栈信息
         error_msg = f'{str(e)}\n{traceback.format_exc()}'  # 组装错误与堆栈文本（便于调试）
         training_status[session_id]['status'] = 'error'  # 将状态置为错误
+        
+        # ========== 更新训练会话状态为失败 ==========
+        if bg_session_manager:
+            try:
+                from datetime import datetime
+                bg_session_manager.update_session(
+                    session_id=session_id,
+                    status='failed',
+                    end_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                )
+            except Exception as update_error:
+                print(f"更新失败状态失败: {str(update_error)}")
+        
         queue.put(json.dumps({  # 向前端推送错误消息
             'type': 'error',  # 消息类型：错误
             'message': f'训练出错: {str(e)}'  # 错误描述
         }))
+    
+    finally:
+        # 关闭后台数据库连接
+        if bg_db:
+            try:
+                bg_db.close()
+            except:
+                pass
 
 
 # 模拟训练函数（备用）
-def simulate_training(config, session_id):
+def simulate_training(config, session_id, user_id):  # ========== 添加user_id参数 ==========
     """模拟强化学习训练过程（当 RL4CO 不可用时）"""
     queue = training_queues[session_id]
     
@@ -1664,14 +2430,37 @@ def simulate_training(config, session_id):
 
 
 @app.route('/api/start_training', methods=['POST'])
+@login_required
 def start_training():
-    """接收训练配置并启动训练"""
+    """接收训练配置并启动训练 - 需要登录"""
     try:
+        # ========== 获取当前用户ID ==========
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '请先登录'
+            }), 401
+        
         config = request.json
         
         # 生成唯一的会话 ID
         import uuid
         session_id = str(uuid.uuid4())
+        
+        # ========== 记录训练会话到数据库 ==========
+        session_manager = get_session_manager()
+        if session_manager:
+            try:
+                session_manager.create_session(
+                    user_id=user_id,
+                    session_id=session_id,
+                    model_type=config.get('model', 'attention'),
+                    problem_type=config.get('problem', 'tsp'),
+                    config=json.dumps(config)
+                )
+            except Exception as e:
+                print(f"记录训练会话失败: {str(e)}")
         
         # 创建消息队列
         training_queues[session_id] = Queue()
@@ -1684,10 +2473,10 @@ def start_training():
             training_func = simulate_training
             mode = "模拟训练模式"
         
-        # 在后台线程中启动训练
+        # 在后台线程中启动训练（传入user_id）
         training_thread = threading.Thread(
             target=training_func,
-            args=(config, session_id),
+            args=(config, session_id, user_id),  # ========== 添加user_id参数 ==========
             daemon=True
         )
         training_thread.start()
@@ -1752,19 +2541,73 @@ def get_training_status(session_id):
 
 
 @app.route('/api/list_files', methods=['GET'])
+@login_required
 def list_training_files():
-    """列出所有训练产生的文件"""
+    """列出当前用户的训练产生的文件 - 需要登录"""
     try:
+        # ========== 获取当前用户ID，只显示该用户的文件 ==========
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '请先登录'
+            }), 401
+        
+        # ========== 从数据库获取用户文件列表 ==========
+        file_manager = get_file_manager()
+        if file_manager:
+            try:
+                user_files = file_manager.get_user_files(user_id)
+                storage_stats = file_manager.get_user_storage_stats(user_id)
+                
+                files_info = {
+                    'plots': [],
+                    'checkpoints': [],
+                    'total_size': storage_stats['total_mb'] if storage_stats else 0,
+                    'total_count': storage_stats['total_files'] if storage_stats else 0
+                }
+                
+                for file_record in user_files:
+                    file_info = {
+                        'id': file_record['id'],
+                        'name': file_record['file_name'],
+                        'type': file_record['file_type'],
+                        'size': file_record['file_size'],
+                        'size_mb': round(file_record['file_size'] / (1024 * 1024), 2),
+                        'path': f"/static/model_plots/user_{user_id}/{file_record['file_name']}",
+                        'session_id': file_record['session_id'],
+                        'create_time': file_record['create_time'].strftime('%Y-%m-%d %H:%M')
+                    }
+                    
+                    if file_record['file_type'] in ['plot', 'animation', 'curve']:
+                        files_info['plots'].append(file_info)
+                    elif file_record['file_type'] == 'checkpoint':
+                        files_info['checkpoints'].append(file_info)
+                
+                return jsonify({
+                    'success': True,
+                    'files': files_info
+                })
+                
+            except Exception as e:
+                print(f"从数据库获取文件失败: {str(e)}")
+                # 降级到文件系统扫描
+                pass
+        
+        # ========== 降级方案：直接扫描用户目录 ==========
         files_info = {
             'plots': [],
             'checkpoints': [],
             'total_size': 0
         }
         
+        USER_PLOTS_DIR = get_user_plot_dir(user_id)
+        USER_CHECKPOINTS_DIR = get_user_checkpoint_dir(user_id)
+        
         # 列出可视化图片文件
-        if os.path.exists(PLOTS_DIR):
-            for filename in os.listdir(PLOTS_DIR):
-                file_path = os.path.join(PLOTS_DIR, filename)
+        if os.path.exists(USER_PLOTS_DIR):
+            for filename in os.listdir(USER_PLOTS_DIR):
+                file_path = os.path.join(USER_PLOTS_DIR, filename)
                 if os.path.isfile(file_path):
                     file_size = os.path.getsize(file_path)
                     file_type = 'unknown'
@@ -1781,7 +2624,7 @@ def list_training_files():
                         'type': file_type,
                         'size': file_size,
                         'size_mb': round(file_size / (1024 * 1024), 2),
-                        'path': f'/static/model_plots/{filename}',
+                        'path': f'/static/model_plots/user_{user_id}/{filename}',
                         'modified': os.path.getmtime(file_path)
                     })
                     files_info['total_size'] += file_size
@@ -1822,34 +2665,63 @@ def list_training_files():
 
 
 @app.route('/api/delete_file', methods=['POST'])
+@login_required
 def delete_training_file():
-    """删除指定的训练文件"""
+    """删除指定的训练文件 - 需要登录且只能删除自己的文件"""
     try:
-        data = request.json
-        filename = data.get('filename')
-        file_type = data.get('file_type', 'plot')
+        # ========== 获取当前用户ID ==========
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '请先登录'
+            }), 401
         
+        data = request.json
+        file_id = data.get('file_id')  # ========== 使用file_id而非filename ==========
+        filename = data.get('filename')  # 兼容旧版
+        
+        # ========== 使用数据库方式删除（推荐） ==========
+        file_manager = get_file_manager()
+        if file_id and file_manager:
+            success, message = file_manager.delete_file(file_id, user_id)
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': message
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': message
+                }), 403
+        
+        # ========== 降级方案：直接删除文件（兼容） ==========
         if not filename:
             return jsonify({
                 'success': False,
-                'message': '未提供文件名'
+                'message': '未提供文件名或文件ID'
             }), 400
         
-        # 确定文件路径
+        file_type = data.get('file_type', 'plot')
+        USER_PLOTS_DIR = get_user_plot_dir(user_id)
+        USER_CHECKPOINTS_DIR = get_user_checkpoint_dir(user_id)
+        
+        # 确定文件路径（用户专属目录）
         if file_type == 'checkpoint':
-            file_path = os.path.join(CHECKPOINTS_DIR, filename)
+            file_path = os.path.join(USER_CHECKPOINTS_DIR, filename)
         else:
-            file_path = os.path.join(PLOTS_DIR, filename)
+            file_path = os.path.join(USER_PLOTS_DIR, filename)
         
-        # 安全检查：确保文件在允许的目录内
+        # 安全检查：确保文件在用户目录内
         abs_file_path = os.path.abspath(file_path)
-        abs_plots_dir = os.path.abspath(PLOTS_DIR)
-        abs_checkpoints_dir = os.path.abspath(CHECKPOINTS_DIR)
+        abs_user_plots = os.path.abspath(USER_PLOTS_DIR)
+        abs_user_checkpoints = os.path.abspath(USER_CHECKPOINTS_DIR)
         
-        if not (abs_file_path.startswith(abs_plots_dir) or abs_file_path.startswith(abs_checkpoints_dir)):
+        if not (abs_file_path.startswith(abs_user_plots) or abs_file_path.startswith(abs_user_checkpoints)):
             return jsonify({
                 'success': False,
-                'message': '无效的文件路径'
+                'message': '无效的文件路径或无权访问'
             }), 403
         
         # 删除文件

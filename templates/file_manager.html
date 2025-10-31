@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>训练文件管理 - RL4CO 平台 | 山西大学</title>
+    <!-- 统一导航样式 -->
+<link rel="stylesheet" href="/static/css/navigation.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1400px;
+            margin: 100px auto 50px;
+            padding: 0 2rem;
+        }
+
+        .page-header {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .page-header .subtitle {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .content-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .header-icon {
+            font-size: 2.5rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.95;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .section {
+            margin-bottom: 3rem;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 3px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-weight: 600;
+        }
+
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .file-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .file-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .file-type-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-comparison {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .badge-animation {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-training {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-checkpoint {
+            background: #dc3545;
+            color: white;
+        }
+
+        .file-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            word-break: break-all;
+            padding-right: 100px;
+        }
+
+        .file-info {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+
+        .file-preview {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background: #e9ecef;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .btn-view {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #138496;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #6c757d;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .modal-message {
+            font-size: 16px;
+            color: #6c757d;
+            margin-bottom: 30px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- 统一导航栏 -->
+    <header class="header">
+        <nav class="nav">
+            <div class="logo-section">
+                <div class="university-badge">🎓 山西大学 · RL4CO</div>
+            </div>
+            <div class="nav-links">
+                <a href="/" {% if active_page == 'home' %}class="active"{% endif %}>🏠 训练首页</a>
+                <a href="/benchmark" {% if active_page == 'benchmark' %}class="active"{% endif %}>📊 算法对比</a>
+                <a href="/model_info" {% if active_page == 'model_info' %}class="active"{% endif %}>📚 模型知识库</a>
+                <a href="/file_manager" {% if active_page == 'file_manager' %}class="active"{% endif %}>🗂️ 文件管理</a>
+                <a href="/profile" {% if active_page == 'profile' %}class="active"{% endif %}>👤 我的账户</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- 页面标题 -->
+        <div class="page-header">
+            <h1>
+                <span class="header-icon">🗂️</span>
+                训练文件管理
+            </h1>
+            <p class="subtitle">管理您的训练结果、可视化文件和模型检查点</p>
+        </div>
+
+        <!-- 主内容卡片 -->
+        <div class="content-card">
+            <!-- 统计信息 -->
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalFiles">-</div>
+                    <div class="stat-label">总文件数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalPlots">-</div>
+                    <div class="stat-label">可视化文件</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalCheckpoints">-</div>
+                    <div class="stat-label">模型检查点</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSize">-</div>
+                    <div class="stat-label">占用空间 (MB)</div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="action-bar">
+                <button class="btn btn-primary" onclick="loadFiles()">
+                    <span>🔄</span> 刷新列表
+                </button>
+                <button class="btn btn-danger" onclick="confirmClearAll()">
+                    <span>🗑️</span> 清空所有文件
+                </button>
+            </div>
+
+            <!-- 可视化文件列表 -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span>📊</span> 可视化文件
+                </h2>
+                <div id="plotsList" class="file-grid">
+                    <div class="loading">
+                        <span class="spinner">⏳</span> 加载中...
+                    </div>
+                </div>
+            </div>
+
+            <!-- 检查点文件列表 -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span>💾</span> 模型检查点
+                </h2>
+                <div id="checkpointsList" class="file-grid">
+                    <div class="loading">
+                        <span class="spinner">⏳</span> 加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认对话框 -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-icon">⚠️</div>
+            <div class="modal-title" id="modalTitle">确认操作</div>
+            <div class="modal-message" id="modalMessage">此操作不可撤销，确定要继续吗？</div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" id="confirmBtn">确认</button>
+                <button class="btn btn-back" onclick="closeModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let filesData = null;
+
+        // 页面加载时获取文件列表
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFiles();
+        });
+
+        // 加载文件列表
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/list_files');
+                const data = await response.json();
+
+                if (data.success) {
+                    filesData = data.files;
+                    updateStats(data.files);
+                    renderPlots(data.files.plots);
+                    renderCheckpoints(data.files.checkpoints);
+                } else {
+                    alert('加载文件列表失败: ' + data.message);
+                }
+            } catch (error) {
+                console.error('加载文件列表出错:', error);
+                alert('加载文件列表失败');
+            }
+        }
+
+        // 更新统计信息
+        function updateStats(files) {
+            document.getElementById('totalFiles').textContent = files.total_count;
+            document.getElementById('totalPlots').textContent = files.plots.length;
+            document.getElementById('totalCheckpoints').textContent = files.checkpoints.length;
+            document.getElementById('totalSize').textContent = files.total_size_mb;
+        }
+
+        // 渲染可视化文件列表
+        function renderPlots(plots) {
+            const container = document.getElementById('plotsList');
+            
+            if (plots.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div>暂无可视化文件</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = plots.map(file => `
+                <div class="file-card">
+                    <span class="file-type-badge badge-${file.type}">
+                        ${file.type === 'comparison' ? '对比图' : 
+                          file.type === 'animation' ? '动画' : '训练曲线'}
+                    </span>
+                    ${file.name.endsWith('.png') ? 
+                        `<img src="${file.path}" class="file-preview" alt="${file.name}">` : 
+                        `<img src="${file.path}" class="file-preview" alt="${file.name}">`
+                    }
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-info">
+                        📦 大小: ${file.size_mb} MB<br>
+                        🕒 修改时间: ${new Date(file.modified * 1000).toLocaleString('zh-CN')}
+                    </div>
+                    <div class="file-actions">
+                        <button class="btn btn-small btn-view" onclick="viewFile('${file.path}')">
+                            👁️ 查看
+                        </button>
+                        <button class="btn btn-small btn-delete" onclick="confirmDelete('${file.name}', 'plot')">
+                            🗑️ 删除
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 渲染检查点文件列表
+        function renderCheckpoints(checkpoints) {
+            const container = document.getElementById('checkpointsList');
+            
+            if (checkpoints.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div>暂无检查点文件</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = checkpoints.map(file => `
+                <div class="file-card">
+                    <span class="file-type-badge badge-checkpoint">检查点</span>
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-info">
+                        📦 大小: ${file.size_mb} MB<br>
+                        🕒 修改时间: ${new Date(file.modified * 1000).toLocaleString('zh-CN')}
+                    </div>
+                    <div class="file-actions">
+                        <button class="btn btn-small btn-delete" onclick="confirmDelete('${file.name}', 'checkpoint')" style="flex: 1">
+                            🗑️ 删除
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 查看文件
+        function viewFile(path) {
+            window.open(path, '_blank');
+        }
+
+        // 确认删除单个文件
+        function confirmDelete(filename, fileType) {
+            showModal(
+                '确认删除',
+                `确定要删除文件 "${filename}" 吗？此操作不可撤销。`,
+                () => deleteFile(filename, fileType)
+            );
+        }
+
+        // 删除单个文件
+        async function deleteFile(filename, fileType) {
+            try {
+                const response = await fetch('/api/delete_file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename, file_type: fileType })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    loadFiles(); // 重新加载列表
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (error) {
+                console.error('删除文件出错:', error);
+                alert('删除文件失败');
+            }
+            closeModal();
+        }
+
+        // 确认清空所有文件
+        function confirmClearAll() {
+            if (!filesData || filesData.total_count === 0) {
+                alert('当前没有文件可以清空');
+                return;
+            }
+
+            showModal(
+                '⚠️ 危险操作',
+                `确定要清空所有 ${filesData.total_count} 个文件吗？此操作不可撤销！`,
+                clearAllFiles
+            );
+        }
+
+        // 清空所有文件
+        async function clearAllFiles() {
+            try {
+                const response = await fetch('/api/clear_all_files', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: true })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    loadFiles(); // 重新加载列表
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (error) {
+                console.error('清空文件出错:', error);
+                alert('清空文件失败');
+            }
+            closeModal();
+        }
+
+        // 显示确认对话框
+        function showModal(title, message, confirmCallback) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('confirmModal').classList.add('active');
+            
+            // 设置确认按钮的回调
+            document.getElementById('confirmBtn').onclick = confirmCallback;
+        }
+
+        // 关闭对话框
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('active');
+        }
+    </script>
+    
+    
+<!-- 统一导航逻辑 -->
+<script src="/static/js/navigation.js"></script>
+</body>
+</html>
+

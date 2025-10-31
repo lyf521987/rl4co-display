@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的账户 - RL4CO平台 | 山西大学</title>
+    <!-- 统一导航样式 -->
+    <link rel="stylesheet" href="/static/css/navigation.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 100px auto 50px;
+            padding: 0 2rem;
+        }
+
+        .profile-container {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .profile-header {
+            text-align: center;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 2rem;
+        }
+
+        .profile-header h1 {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+            margin: 0 auto 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid #e8ebff;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .info-section {
+            background: #f8f9ff;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+
+        .info-section h2 {
+            color: #667eea;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .info-item {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            padding: 1rem;
+            background: white;
+            border-radius: 10px;
+            align-items: center;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f2ff;
+            color: #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #e8ebff;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .recent-activity {
+            margin-top: 2rem;
+        }
+
+        .activity-item {
+            padding: 1rem;
+            background: white;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .activity-time {
+            color: #999;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .activity-text {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <!-- 统一导航栏 -->
+    <header class="header">
+        <nav class="nav">
+            <div class="logo-section">
+                <div class="university-badge">🎓 山西大学 · RL4CO</div>
+            </div>
+            <div class="nav-links">
+                <a href="/" {% if active_page == 'home' %}class="active"{% endif %}>🏠 训练首页</a>
+                <a href="/benchmark" {% if active_page == 'benchmark' %}class="active"{% endif %}>📊 算法对比</a>
+                <a href="/model_info" {% if active_page == 'model_info' %}class="active"{% endif %}>📚 模型知识库</a>
+                <a href="/file_manager" {% if active_page == 'file_manager' %}class="active"{% endif %}>🗂️ 文件管理</a>
+                <a href="/profile" {% if active_page == 'profile' %}class="active"{% endif %}>👤 我的账户</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="main-container">
+        <div class="profile-container">
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    {{ username[0].upper() if username else 'U' }}
+                </div>
+                <h1>我的账户</h1>
+                <p style="color: #666; font-size: 1.1rem;">{{ username if username else '访客' }}</p>
+            </div>
+
+            <!-- 统计数据 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value" id="totalSessions">0</div>
+                    <div class="stat-label">训练次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value" id="completedSessions">0</div>
+                    <div class="stat-label">完成训练</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📁</div>
+                    <div class="stat-value" id="totalFiles">0</div>
+                    <div class="stat-label">生成文件</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💾</div>
+                    <div class="stat-value" id="storageUsed">0 MB</div>
+                    <div class="stat-label">存储空间</div>
+                </div>
+            </div>
+
+            <!-- 账户信息 -->
+            <div class="info-section">
+                <h2>📝 账户信息</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">用户名</div>
+                        <div class="info-value">{{ username if username else '未登录' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">邮箱</div>
+                        <div class="info-value">{{ email if email else '未设置' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">注册时间</div>
+                        <div class="info-value">{{ create_time if create_time else '-' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">最后登录</div>
+                        <div class="info-value">{{ last_login if last_login else '-' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近活动 -->
+            <div class="info-section recent-activity">
+                <h2>🕒 最近活动</h2>
+                <div id="activityList">
+                    <p style="text-align: center; color: #999; padding: 2rem;">加载中...</p>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="btn-group">
+                <a href="/" class="btn btn-secondary">🏠 返回首页</a>
+                <button class="btn btn-primary" onclick="changePassword()">🔑 修改密码</button>
+                <button class="btn btn-danger" onclick="logout()">🚪 退出登录</button>
+            </div>
+            
+            <!-- 危险操作区域 -->
+            <div class="info-section" style="margin-top: 2rem; border: 2px solid #f56565; border-radius: 12px; padding: 1.5rem;">
+                <h2 style="color: #f56565;">⚠️ 危险操作区</h2>
+                <p style="color: #666; margin-bottom: 1rem;">以下操作不可逆，请谨慎操作</p>
+                <button class="btn btn-danger" onclick="deleteAccount()">🗑️ 删除账户</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 退出登录
+        async function logout() {
+            if (!confirm('确定要退出登录吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('已退出登录');
+                    window.location.href = '/login';
+                } else {
+                    alert('退出失败：' + result.message);
+                }
+            } catch (error) {
+                console.error('退出登录错误:', error);
+                alert('网络错误，请重试');
+            }
+        }
+
+        // 修改密码
+        function changePassword() {
+            const oldPassword = prompt('请输入当前密码：');
+            if (!oldPassword) return;
+
+            const newPassword = prompt('请输入新密码（至少6位）：');
+            if (!newPassword || newPassword.length < 6) {
+                alert('新密码长度至少为6位');
+                return;
+            }
+
+            const confirmPassword = prompt('请再次输入新密码：');
+            if (newPassword !== confirmPassword) {
+                alert('两次输入的密码不一致');
+                return;
+            }
+
+            // TODO: 调用修改密码API
+            alert('修改密码功能开发中...');
+        }
+
+        // 删除账户
+        function deleteAccount() {
+            if (!confirm('警告：删除账户后，所有数据将永久丢失！\n确定要删除账户吗？')) {
+                return;
+            }
+
+            const password = prompt('请输入密码以确认删除：');
+            if (!password) return;
+
+            // TODO: 调用删除账户API
+            alert('删除账户功能开发中...');
+        }
+
+        // 加载用户统计数据（实时数据）
+        async function loadUserStats() {
+            try {
+                const response = await fetch('/api/user_stats', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.stats) {
+                    const stats = result.stats;
+                    document.getElementById('totalSessions').textContent = stats.total_sessions || '0';
+                    document.getElementById('completedSessions').textContent = stats.completed_sessions || '0';
+                    document.getElementById('totalFiles').textContent = stats.total_files || '0';
+                    document.getElementById('storageUsed').textContent = (stats.total_size_mb || 0).toFixed(2) + ' MB';
+                } else {
+                    console.error('获取统计数据失败:', result.message);
+                    // 显示默认值
+                    document.getElementById('totalSessions').textContent = '0';
+                    document.getElementById('completedSessions').textContent = '0';
+                    document.getElementById('totalFiles').textContent = '0';
+                    document.getElementById('storageUsed').textContent = '0 MB';
+                }
+            } catch (error) {
+                console.error('加载统计数据失败:', error);
+                // 显示错误状态
+                document.getElementById('totalSessions').textContent = '-';
+                document.getElementById('completedSessions').textContent = '-';
+                document.getElementById('totalFiles').textContent = '-';
+                document.getElementById('storageUsed').textContent = '-';
+            }
+        }
+
+        // 加载最近活动（实时数据）
+        async function loadRecentActivity() {
+            try {
+                const response = await fetch('/api/user_activity', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.activities) {
+                    const activities = result.activities;
+                    
+                    const activityHTML = activities.map(activity => {
+                        // 根据状态设置颜色
+                        let borderColor = '#667eea';
+                        if (activity.status === 'completed') {
+                            borderColor = '#48bb78'; // 绿色
+                        } else if (activity.status === 'failed') {
+                            borderColor = '#f56565'; // 红色
+                        } else if (activity.status === 'running') {
+                            borderColor = '#ed8936'; // 橙色
+                        }
+                        
+                        return `
+                            <div class="activity-item" style="border-left-color: ${borderColor};">
+                                <div class="activity-time">${activity.time}</div>
+                                <div class="activity-text">${activity.text}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    document.getElementById('activityList').innerHTML = activityHTML;
+                } else {
+                    console.error('获取活动记录失败:', result.message);
+                    document.getElementById('activityList').innerHTML = 
+                        '<p style="text-align: center; color: #999;">暂无活动记录</p>';
+                }
+            } catch (error) {
+                console.error('加载活动记录失败:', error);
+                document.getElementById('activityList').innerHTML = 
+                    '<p style="text-align: center; color: #f56565;">加载失败，请刷新页面重试</p>';
+            }
+        }
+
+        // 页面加载时执行
+        window.addEventListener('load', () => {
+            loadUserStats();
+            loadRecentActivity();
+        });
+    </script>
+</body>
+</html>
+
