@@ -496,31 +496,38 @@
                 return;
             }
 
-            container.innerHTML = plots.map(file => `
+            container.innerHTML = plots.map(file => {
+                const fileId = file.id || '';
+                const createTime = file.create_time || new Date(file.modified * 1000).toLocaleString('zh-CN');
+                return `
                 <div class="file-card">
                     <span class="file-type-badge badge-${file.type}">
-                        ${file.type === 'comparison' ? '对比图' : 
-                          file.type === 'animation' ? '动画' : '训练曲线'}
+                        ${file.type === 'comparison' || file.type === 'plot' ? '对比图' : 
+                          file.type === 'animation' ? '动画' : 
+                          file.type === 'curve' ? '训练曲线' : '图片'}
                     </span>
-                    ${file.name.endsWith('.png') ? 
+                    ${file.name.endsWith('.png') || file.name.endsWith('.gif') ? 
                         `<img src="${file.path}" class="file-preview" alt="${file.name}">` : 
                         `<img src="${file.path}" class="file-preview" alt="${file.name}">`
                     }
                     <div class="file-name">${file.name}</div>
                     <div class="file-info">
                         📦 大小: ${file.size_mb} MB<br>
-                        🕒 修改时间: ${new Date(file.modified * 1000).toLocaleString('zh-CN')}
+                        🕒 创建时间: ${createTime}
                     </div>
                     <div class="file-actions">
                         <button class="btn btn-small btn-view" onclick="viewFile('${file.path}')">
                             👁️ 查看
                         </button>
-                        <button class="btn btn-small btn-delete" onclick="confirmDelete('${file.name}', 'plot')">
+                        <button class="btn btn-small" style="background: #28a745; color: white;" onclick="downloadFile('${file.path}', '${file.name}')">
+                            📥 下载
+                        </button>
+                        <button class="btn btn-small btn-delete" onclick="confirmDelete('${fileId}', '${file.name}', 'plot')">
                             🗑️ 删除
                         </button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         // 渲染检查点文件列表
@@ -537,21 +544,27 @@
                 return;
             }
 
-            container.innerHTML = checkpoints.map(file => `
+            container.innerHTML = checkpoints.map(file => {
+                const fileId = file.id || '';
+                const createTime = file.create_time || new Date(file.modified * 1000).toLocaleString('zh-CN');
+                return `
                 <div class="file-card">
                     <span class="file-type-badge badge-checkpoint">检查点</span>
                     <div class="file-name">${file.name}</div>
                     <div class="file-info">
                         📦 大小: ${file.size_mb} MB<br>
-                        🕒 修改时间: ${new Date(file.modified * 1000).toLocaleString('zh-CN')}
+                        🕒 创建时间: ${createTime}
                     </div>
                     <div class="file-actions">
-                        <button class="btn btn-small btn-delete" onclick="confirmDelete('${file.name}', 'checkpoint')" style="flex: 1">
+                        <button class="btn btn-small" style="background: #28a745; color: white;" onclick="downloadCheckpoint('${file.name}')">
+                            📥 下载
+                        </button>
+                        <button class="btn btn-small btn-delete" onclick="confirmDelete('${fileId}', '${file.name}', 'checkpoint')">
                             🗑️ 删除
                         </button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         // 查看文件
@@ -560,21 +573,26 @@
         }
 
         // 确认删除单个文件
-        function confirmDelete(filename, fileType) {
+        function confirmDelete(fileId, filename, fileType) {
             showModal(
                 '确认删除',
                 `确定要删除文件 "${filename}" 吗？此操作不可撤销。`,
-                () => deleteFile(filename, fileType)
+                () => deleteFile(fileId, filename, fileType)
             );
         }
 
         // 删除单个文件
-        async function deleteFile(filename, fileType) {
+        async function deleteFile(fileId, filename, fileType) {
             try {
+                // 优先使用file_id，如果没有则使用filename
+                const requestBody = fileId ? 
+                    { file_id: fileId } : 
+                    { filename: filename, file_type: fileType };
+                
                 const response = await fetch('/api/delete_file', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filename, file_type: fileType })
+                    body: JSON.stringify(requestBody)
                 });
 
                 const data = await response.json();
@@ -590,6 +608,46 @@
                 alert('删除文件失败');
             }
             closeModal();
+        }
+
+        // 下载文件
+        function downloadFile(filePath, filename) {
+            // 创建一个隐藏的a标签进行下载
+            const link = document.createElement('a');
+            link.href = filePath;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 下载检查点文件
+        async function downloadCheckpoint(filename) {
+            try {
+                const response = await fetch(`/api/download_checkpoint/${encodeURIComponent(filename)}`);
+                
+                if (!response.ok) {
+                    const data = await response.json();
+                    alert('❌ 下载失败: ' + data.message);
+                    return;
+                }
+                
+                // 创建blob并下载
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                
+                alert('✅ 开始下载: ' + filename);
+            } catch (error) {
+                console.error('下载检查点文件出错:', error);
+                alert('❌ 下载失败');
+            }
         }
 
         // 确认清空所有文件

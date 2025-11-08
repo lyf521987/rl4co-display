@@ -2744,10 +2744,71 @@ def delete_training_file():
         }), 500
 
 
-@app.route('/api/delete_by_session', methods=['POST'])
-def delete_by_session():
-    """根据session_id删除相关的所有文件"""
+@app.route('/api/download_checkpoint/<filename>')
+@login_required
+def download_checkpoint(filename):
+    """下载检查点文件 - 需要登录且只能下载自己的文件"""
     try:
+        # ========== 获取当前用户ID ==========
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '请先登录'
+            }), 401
+        
+        USER_CHECKPOINTS_DIR = get_user_checkpoint_dir(user_id)
+        
+        # 安全检查：防止路径遍历攻击
+        safe_filename = os.path.basename(filename)
+        file_path = os.path.join(USER_CHECKPOINTS_DIR, safe_filename)
+        
+        # 验证文件路径在用户目录内
+        abs_file_path = os.path.abspath(file_path)
+        abs_user_dir = os.path.abspath(USER_CHECKPOINTS_DIR)
+        
+        if not abs_file_path.startswith(abs_user_dir):
+            return jsonify({
+                'success': False,
+                'message': '无效的文件路径'
+            }), 403
+        
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
+            return jsonify({
+                'success': False,
+                'message': '文件不存在'
+            }), 404
+        
+        # 发送文件
+        from flask import send_file
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=safe_filename,
+            mimetype='application/octet-stream'
+        )
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'下载失败: {str(e)}'
+        }), 500
+
+
+@app.route('/api/delete_by_session', methods=['POST'])
+@login_required
+def delete_by_session():
+    """根据session_id删除相关的所有文件 - 需要登录且只能删除自己的文件"""
+    try:
+        # ========== 获取当前用户ID ==========
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '请先登录'
+            }), 401
+        
         data = request.json
         session_id = data.get('session_id')
         
@@ -2761,11 +2822,13 @@ def delete_by_session():
         session_prefix = session_id[:8]
         deleted_files = []
         
-        # 删除可视化文件
-        if os.path.exists(PLOTS_DIR):
-            for filename in os.listdir(PLOTS_DIR):
+        USER_PLOTS_DIR = get_user_plot_dir(user_id)
+        
+        # 删除用户的可视化文件
+        if os.path.exists(USER_PLOTS_DIR):
+            for filename in os.listdir(USER_PLOTS_DIR):
                 if session_prefix in filename:
-                    file_path = os.path.join(PLOTS_DIR, filename)
+                    file_path = os.path.join(USER_PLOTS_DIR, filename)
                     try:
                         os.remove(file_path)
                         deleted_files.append(filename)
@@ -2786,9 +2849,18 @@ def delete_by_session():
 
 
 @app.route('/api/clear_all_files', methods=['POST'])
+@login_required
 def clear_all_files():
-    """清空所有训练文件（谨慎使用）"""
+    """清空当前用户的所有训练文件（谨慎使用）"""
     try:
+        # ========== 获取当前用户ID ==========
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '请先登录'
+            }), 401
+        
         data = request.json
         confirm = data.get('confirm', False)
         
@@ -2800,10 +2872,13 @@ def clear_all_files():
         
         deleted_count = 0
         
-        # 清空可视化文件
-        if os.path.exists(PLOTS_DIR):
-            for filename in os.listdir(PLOTS_DIR):
-                file_path = os.path.join(PLOTS_DIR, filename)
+        USER_PLOTS_DIR = get_user_plot_dir(user_id)
+        USER_CHECKPOINTS_DIR = get_user_checkpoint_dir(user_id)
+        
+        # 清空用户的可视化文件
+        if os.path.exists(USER_PLOTS_DIR):
+            for filename in os.listdir(USER_PLOTS_DIR):
+                file_path = os.path.join(USER_PLOTS_DIR, filename)
                 if os.path.isfile(file_path):
                     try:
                         os.remove(file_path)
@@ -2811,16 +2886,27 @@ def clear_all_files():
                     except Exception as e:
                         print(f"删除文件 {filename} 失败: {str(e)}")
         
-        # 清空检查点文件
-        if os.path.exists(CHECKPOINTS_DIR):
-            for filename in os.listdir(CHECKPOINTS_DIR):
+        # 清空用户的检查点文件
+        if os.path.exists(USER_CHECKPOINTS_DIR):
+            for filename in os.listdir(USER_CHECKPOINTS_DIR):
                 if filename.endswith('.ckpt'):
-                    file_path = os.path.join(CHECKPOINTS_DIR, filename)
+                    file_path = os.path.join(USER_CHECKPOINTS_DIR, filename)
                     try:
                         os.remove(file_path)
                         deleted_count += 1
                     except Exception as e:
                         print(f"删除文件 {filename} 失败: {str(e)}")
+        
+        # ========== 同时清空数据库记录 ==========
+        file_manager = get_file_manager()
+        if file_manager:
+            try:
+                db = get_db()
+                cursor = db.cursor()
+                cursor.execute("DELETE FROM user_files WHERE user_id = %s", (user_id,))
+                db.commit()
+            except Exception as e:
+                print(f"清空数据库记录失败: {str(e)}")
         
         return jsonify({
             'success': True,
